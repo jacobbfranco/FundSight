@@ -50,7 +50,6 @@ if uploaded_file:
 
     # 🔮 Forecast: 30-Day Cash Flow Projection
     st.subheader("📅 Projected 30-Day Cash Flow")
-
     daily_avg = daily_totals["Amount"].mean()
     last_date = daily_totals["Date"].max()
     future_dates = pd.date_range(start=last_date + timedelta(days=1), periods=30)
@@ -64,6 +63,12 @@ if uploaded_file:
         st.subheader("📋 Budget vs Actuals Comparison")
 
         budget_df = pd.read_csv(budget_file)
+
+        # DEBUG: Show columns in budget file
+        st.write("Budget CSV Columns:", budget_df.columns.tolist())
+
+        # Clean budget column names and account values
+        budget_df.columns = budget_df.columns.str.strip()
         budget_df["Account"] = budget_df["Account"].str.strip()
 
         # Aggregate actuals by account
