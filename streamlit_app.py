@@ -17,14 +17,16 @@ if uploaded_file:
     st.metric("🔴 Expenses", f"${expenses:,.2f}")
     st.metric("💰 Net Cash Flow", f"${net:,.2f}")
 
-    # Daily cash flow line chart
-    daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
-    st.line_chart(daily_totals.set_index("Date"))
+   # Daily cash flow line chart
+daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
+st.write("Daily totals preview:", daily_totals.head())
+st.line_chart(daily_totals.set_index("Date"))
 
     # Expenses by category bar chart
-    expense_df = df[df["Amount"] < 0]
-    by_category = expense_df.groupby("Account")["Amount"].sum()
-    st.bar_chart(by_category.abs())
+expense_df = df[df["Amount"] < 0]
+by_category = expense_df.groupby("Account")["Amount"].sum()
+st.write("By category preview:", by_category)
+st.bar_chart(by_category.abs())))
 
     # Pie chart for expenses
     fig, ax = plt.subplots()
