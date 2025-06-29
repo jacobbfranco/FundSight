@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import datetime as dt
 
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
 
@@ -24,6 +26,38 @@ if uploaded_file:
     col1.metric("🟢 Total Income", f"${income:,.2f}")
     col2.metric("🔴 Total Expenses", f"${expenses:,.2f}")
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
+
+    st.markdown("---")
+
+    # PHASE 1: CASH FLOW FORECAST
+    st.subheader("📉 Cash Flow Forecast (Next 3 Months)")
+
+    df["Month"] = df["Date"].dt.to_period("M")
+    monthly = df.groupby("Month")["Amount"].sum().reset_index()
+    monthly["Month"] = monthly["Month"].dt.to_timestamp()
+
+    # Use rolling average to forecast
+    lookback_months = 3
+    avg_income = df[df["Amount"] > 0].groupby("Month")["Amount"].sum().rolling(lookback_months).mean().iloc[-1]
+    avg_expense = df[df["Amount"] < 0].groupby("Month")["Amount"].sum().rolling(lookback_months).mean().iloc[-1]
+
+    future_months = pd.date_range(start=monthly["Month"].max() + pd.offsets.MonthBegin(), periods=3, freq='MS')
+    forecast_df = pd.DataFrame({
+        "Month": future_months,
+        "Forecast Income": avg_income,
+        "Forecast Expenses": avg_expense,
+        "Forecast Net": avg_income + avg_expense
+    })
+
+    monthly["Forecast Income"] = np.nan
+    monthly["Forecast Expenses"] = np.nan
+    monthly["Forecast Net"] = monthly["Amount"]
+    forecast_combined = pd.concat([
+        monthly[["Month", "Forecast Income", "Forecast Expenses", "Forecast Net"]],
+        forecast_df
+    ])
+
+    st.line_chart(forecast_combined.set_index("Month")[["Forecast Net"]])
 
     st.markdown("---")
 
