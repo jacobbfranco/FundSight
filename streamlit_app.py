@@ -66,13 +66,10 @@ if uploaded_file:
         budget_df.columns = budget_df.columns.str.strip()
         budget_df["Account"] = budget_df["Account"].str.strip()
 
-        st.write("Budget CSV Columns:", budget_df.columns.tolist())  # Debug info
-
         required_columns = {"Account", "Budget Amount"}
         if not required_columns.issubset(set(budget_df.columns)):
             st.error(f"⚠️ Your budget file is missing required columns: {required_columns}")
         else:
-            # Aggregate actuals by account
             actuals = df.groupby("Account")["Amount"].sum()
             comparison = pd.merge(
                 budget_df,
@@ -84,7 +81,6 @@ if uploaded_file:
             comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
             comparison["Variance %"] = (comparison["Variance"] / comparison["Budget Amount"].replace(0, 1)) * 100
 
-            # Show table
             st.dataframe(
                 comparison.style.format({
                     "Budget Amount": "${:,.2f}",
@@ -97,7 +93,6 @@ if uploaded_file:
                 )
             )
 
-            # Bar chart: Budget vs Actual
             st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
 
 else:
