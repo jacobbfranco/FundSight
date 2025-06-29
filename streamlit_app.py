@@ -63,41 +63,42 @@ if uploaded_file:
         st.subheader("📋 Budget vs Actuals Comparison")
 
         budget_df = pd.read_csv(budget_file)
-
-        # DEBUG: Show columns in budget file
-        st.write("Budget CSV Columns:", budget_df.columns.tolist())
-
-        # Clean budget column names and account values
         budget_df.columns = budget_df.columns.str.strip()
         budget_df["Account"] = budget_df["Account"].str.strip()
 
-        # Aggregate actuals by account
-        actuals = df.groupby("Account")["Amount"].sum()
-        comparison = pd.merge(
-            budget_df,
-            actuals.rename("Actual"),
-            on="Account",
-            how="outer"
-        ).fillna(0)
+        st.write("Budget CSV Columns:", budget_df.columns.tolist())  # Debug info
 
-        comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
-        comparison["Variance %"] = (comparison["Variance"] / comparison["Budget Amount"].replace(0, 1)) * 100
+        required_columns = {"Account", "Budget Amount"}
+        if not required_columns.issubset(set(budget_df.columns)):
+            st.error(f"⚠️ Your budget file is missing required columns: {required_columns}")
+        else:
+            # Aggregate actuals by account
+            actuals = df.groupby("Account")["Amount"].sum()
+            comparison = pd.merge(
+                budget_df,
+                actuals.rename("Actual"),
+                on="Account",
+                how="outer"
+            ).fillna(0)
 
-        # Show table
-        st.dataframe(
-            comparison.style.format({
-                "Budget Amount": "${:,.2f}",
-                "Actual": "${:,.2f}",
-                "Variance": "${:,.2f}",
-                "Variance %": "{:+.1f}%"
-            }).applymap(
-                lambda v: 'color: red;' if isinstance(v, (int, float)) and v < 0 else 'color: green;',
-                subset=["Variance"]
+            comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
+            comparison["Variance %"] = (comparison["Variance"] / comparison["Budget Amount"].replace(0, 1)) * 100
+
+            # Show table
+            st.dataframe(
+                comparison.style.format({
+                    "Budget Amount": "${:,.2f}",
+                    "Actual": "${:,.2f}",
+                    "Variance": "${:,.2f}",
+                    "Variance %": "{:+.1f}%"
+                }).applymap(
+                    lambda v: 'color: red;' if isinstance(v, (int, float)) and v < 0 else 'color: green;',
+                    subset=["Variance"]
+                )
             )
-        )
 
-        # Bar chart: Budget vs Actual
-        st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
+            # Bar chart: Budget vs Actual
+            st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
 
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
