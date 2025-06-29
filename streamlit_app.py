@@ -1,15 +1,13 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 from datetime import timedelta
 
-# Set page config
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
-
 st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
 
 uploaded_file = st.file_uploader("Upload your QuickBooks CSV", type=["csv"])
+budget_file = st.file_uploader("Upload your Budget CSV (optional)", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
@@ -50,20 +48,51 @@ if uploaded_file:
 
     st.markdown("---")
 
-    # 🔮 Forecast: Simple 30-day projection
-    st.subheader("📅 30-Day Cash Flow Forecast")
-    df = df.sort_values("Date")
-    recent = df[df["Date"] >= df["Date"].max() - pd.Timedelta(days=30)]
-    avg_daily = recent.groupby("Date")["Amount"].sum().mean()
+    # 🔮 Forecast: 30-Day Cash Flow Projection
+    st.subheader("📅 Projected 30-Day Cash Flow")
 
-    forecast_days = 30
-    forecast_dates = pd.date_range(start=df["Date"].max() + timedelta(days=1), periods=forecast_days)
-    forecast_values = [avg_daily] * forecast_days
-    forecast_df = pd.DataFrame({"Date": forecast_dates, "Forecasted Cash Flow": forecast_values})
-
+    daily_avg = daily_totals["Amount"].mean()
+    last_date = daily_totals["Date"].max()
+    future_dates = pd.date_range(start=last_date + timedelta(days=1), periods=30)
+    forecast_df = pd.DataFrame({"Date": future_dates, "Amount": daily_avg})
     st.line_chart(forecast_df.set_index("Date"))
 
-    st.caption(f"Based on average daily cash flow over the last 30 days: ${avg_daily:,.2f}/day")
+    st.markdown("---")
+
+    # 📋 Budget vs Actuals
+    if budget_file:
+        st.subheader("📋 Budget vs Actuals Comparison")
+
+        budget_df = pd.read_csv(budget_file)
+        budget_df["Account"] = budget_df["Account"].str.strip()
+
+        # Aggregate actuals by account
+        actuals = df.groupby("Account")["Amount"].sum()
+        comparison = pd.merge(
+            budget_df,
+            actuals.rename("Actual"),
+            on="Account",
+            how="outer"
+        ).fillna(0)
+
+        comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
+        comparison["Variance %"] = (comparison["Variance"] / comparison["Budget Amount"].replace(0, 1)) * 100
+
+        # Show table
+        st.dataframe(
+            comparison.style.format({
+                "Budget Amount": "${:,.2f}",
+                "Actual": "${:,.2f}",
+                "Variance": "${:,.2f}",
+                "Variance %": "{:+.1f}%"
+            }).applymap(
+                lambda v: 'color: red;' if isinstance(v, (int, float)) and v < 0 else 'color: green;',
+                subset=["Variance"]
+            )
+        )
+
+        # Bar chart: Budget vs Actual
+        st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
 
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
