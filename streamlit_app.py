@@ -7,7 +7,7 @@ from datetime import timedelta
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
 st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
 
-# Uploads
+# Upload files
 uploaded_file = st.file_uploader("Upload your QuickBooks CSV", type=["csv"])
 budget_file = st.file_uploader("Upload your Budget CSV (optional)", type=["csv"])
 
@@ -29,25 +29,25 @@ if uploaded_file:
 
     st.markdown("---")
 
-    # Daily Cash Flow Trend
+    # 📈 Daily Cash Flow Trend
     st.subheader("📈 Daily Cash Flow Trend")
     daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
     st.line_chart(daily_totals.set_index("Date"))
 
-    # Expense by Account
+    # 📊 Expenses by Category
     st.subheader("📊 Expenses by Account Category")
     expense_df = df[df["Amount"] < 0]
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
     st.bar_chart(by_category.abs())
 
-    # Expense Pie Chart
+    # 🧁 Expense Distribution
     st.subheader("🧁 Expense Distribution")
     fig, ax = plt.subplots()
     ax.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
     ax.axis("equal")
     st.pyplot(fig)
 
-    # 30-Day Forecast
+    # 📅 30-Day Forecast
     st.subheader("📅 30-Day Cash Flow Projection")
     daily_avg = daily_totals["Amount"].mean()
     future_dates = pd.date_range(start=daily_totals["Date"].max() + timedelta(days=1), periods=30)
@@ -101,7 +101,7 @@ if uploaded_file:
     # 📊 Financial KPIs
     st.subheader("📊 Key Financial Ratios")
     cash_on_hand = df["Amount"].sum()
-    monthly_expense_avg = abs(expense_df.resample("M", on="Date")["Amount"].sum().mean())  # ✅ Fixed
+    monthly_expense_avg = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())  # ✅ Fixed
     kpis = {
         "💵 Days Cash on Hand": (cash_on_hand / monthly_expense_avg * 30) if monthly_expense_avg else 0,
         "📊 Program Expense Ratio": abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0,
