@@ -155,5 +155,8 @@ Net Cash Flow: ${net:,.2f}
         except Exception as e:
             st.error(f"❌ Failed to send email: {e}")
 
+    # Debug marker
+    st.info("✅ Reached bottom of dashboard.")
+
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
