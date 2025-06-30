@@ -31,6 +31,7 @@ if uploaded_file:
     income = df[df["Amount"] > 0]["Amount"].sum()
     expenses = df[df["Amount"] < 0]["Amount"].sum()
     net = income + expenses
+
     col1, col2, col3 = st.columns(3)
     col1.metric("🟢 Total Income", f"${income:,.2f}")
     col2.metric("🔴 Total Expenses", f"${expenses:,.2f}")
@@ -125,30 +126,34 @@ if uploaded_file:
     csv = report.to_csv(index=False)
     st.download_button("Download Full Data CSV", csv, "fundsight_report.csv", "text/csv")
 
-    # --- EMAIL SECTION ---
+    # --- EMAIL REPORT ---
     st.subheader("📧 Send Report via Email")
     if st.button("Send Report to jacob.b.franco@gmail.com"):
         try:
+            sender_email = st.secrets["email_user"]
+            sender_password = st.secrets["email_password"]
             msg = MIMEMultipart()
-            msg["From"] = "your_email@example.com"
+            msg["From"] = sender_email
             msg["To"] = "jacob.b.franco@gmail.com"
             msg["Subject"] = f"FundSight Report - {selected_client}"
-            body = f"Attached is the FundSight report for {selected_client}.
+            body = f"""Attached is the FundSight report for {selected_client}.
 
-Net Cash Flow: ${net:,.2f}"
+Net Cash Flow: ${net:,.2f}
+"""
             msg.attach(MIMEText(body, "plain"))
 
-            attachment = MIMEText(csv, "csv")
-            attachment.add_header("Content-Disposition", "attachment", filename="fundsight_report.csv")
+            attachment = MIMEText(csv, "plain")
+            attachment.add_header("Content-Disposition", "attachment", filename=f"{selected_client}_fundsight_report.csv")
             msg.attach(attachment)
 
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
-            server.login("your_email@example.com", "your_app_password")
+            server.login(sender_email, sender_password)
             server.sendmail(msg["From"], msg["To"], msg.as_string())
             server.quit()
             st.success("✅ Report sent successfully.")
         except Exception as e:
             st.error(f"❌ Failed to send email: {e}")
+
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
