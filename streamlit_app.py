@@ -81,27 +81,27 @@ if uploaded_file:
 
     st.markdown("---")
 
-    # 📊 Trend Analysis & Seasonality
+    # 📉 Trend Analysis
     st.subheader("📉 Trend Analysis")
     monthly_trend = df.groupby(df["Date"].dt.to_period("M"))["Amount"].sum().reset_index()
     monthly_trend["Date"] = monthly_trend["Date"].astype(str)
     st.line_chart(monthly_trend.set_index("Date"))
 
-    # 💸 Donor or Revenue Source Breakdown
+    # 💌 Top Revenue Sources
     if "Name" in df.columns:
         st.subheader("💌 Top Revenue Sources")
         top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().sort_values(ascending=False).head(10)
         st.bar_chart(top_sources)
 
-    # 🔍 Expense Breakdown by Month
+    # 🔍 Monthly Expense Drill-down
     st.subheader("🔍 Monthly Expense Drill-down")
     expense_by_month = expense_df.groupby([df["Date"].dt.to_period("M"), "Account"])["Amount"].sum().unstack().fillna(0)
     st.line_chart(expense_by_month.abs())
 
-    # 📈 Financial KPIs
+    # 📊 Financial KPIs
     st.subheader("📊 Key Financial Ratios")
     cash_on_hand = df["Amount"].sum()
-    monthly_expense_avg = abs(expense_df["Amount"].resample("M", on="Date").sum().mean())
+    monthly_expense_avg = abs(expense_df.resample("M", on="Date")["Amount"].sum().mean())  # ✅ Fixed
     kpis = {
         "💵 Days Cash on Hand": (cash_on_hand / monthly_expense_avg * 30) if monthly_expense_avg else 0,
         "📊 Program Expense Ratio": abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0,
@@ -134,7 +134,7 @@ if uploaded_file:
         multi_year = df.groupby(df["Date"].dt.year)["Amount"].sum()
         st.bar_chart(multi_year)
 
-    # 📁 Download Report
+    # 📥 Download Report
     st.subheader("📥 Downloadable Report")
     report = df.copy()
     report["Year"] = report["Date"].dt.year
