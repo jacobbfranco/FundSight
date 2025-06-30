@@ -60,7 +60,7 @@ if uploaded_file:
     st.line_chart(forecast_df.set_index("Date"))
     st.markdown("---")
 
-    if budget_file:
+    if budget_file is not None:
         st.subheader("📋 Budget vs Actuals")
         budget_df = pd.read_csv(budget_file)
         budget_df.columns = budget_df.columns.str.strip()
@@ -128,6 +128,10 @@ if uploaded_file:
 
     # --- EMAIL REPORT ---
     st.subheader("📧 Send Report via Email")
+    
+    # 🐞 Debug marker
+    st.info("🐞 DEBUG: Reached email section")
+
     if st.button("Send Report to jacob.b.franco@gmail.com"):
         try:
             sender_email = st.secrets["email_user"]
@@ -155,7 +159,7 @@ Net Cash Flow: ${net:,.2f}
         except Exception as e:
             st.error(f"❌ Failed to send email: {e}")
 
-    # Debug marker
+    # Final debug marker
     st.info("✅ Reached bottom of dashboard.")
 
 else:
