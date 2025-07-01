@@ -6,15 +6,14 @@ from datetime import timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
-st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
+st.title("FundSight: QuickBooks Dashboard for Nonprofits")
 
 # --- MULTI-CLIENT SELECTION ---
-st.sidebar.header("👥 Client Selection")
+st.sidebar.header("Client Selection")
 client_names = ["Client A", "Client B", "Client C"]
 selected_client = st.sidebar.selectbox("Select Client", client_names)
 
@@ -24,7 +23,7 @@ uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], 
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 
 if uploaded_file:
-    st.markdown(f"### 📂 Dashboard for `{selected_client}`")
+    st.markdown(f"### Dashboard for {selected_client}")
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
     df["Account"] = df["Account"].str.strip()
@@ -36,123 +35,158 @@ if uploaded_file:
     net = income + expenses
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("🟢 Total Income", f"${income:,.2f}")
-    col2.metric("🔴 Total Expenses", f"${expenses:,.2f}")
-    col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
+    col1.metric("Total Income", f"${income:,.2f}")
+    col2.metric("Total Expenses", f"${expenses:,.2f}")
+    col3.metric("Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # 📊 Charts and graphs
-    charts = []
-
-    # 1. Daily Cash Flow
+    st.subheader("Daily Cash Flow Trend")
     daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
-    fig1, ax1 = plt.subplots()
-    ax1.plot(daily_totals["Date"], daily_totals["Amount"])
-    ax1.set_title("Daily Cash Flow")
-    fig1.tight_layout()
-    fig1.savefig("/tmp/daily_cash_flow.png")
-    charts.append("/tmp/daily_cash_flow.png")
     st.line_chart(daily_totals.set_index("Date"))
 
-    # 2. Expenses by Account
+    st.subheader("Expenses by Account Category")
     expense_df = df[df["Amount"] < 0]
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
-    fig2, ax2 = plt.subplots(figsize=(10, 6))
-    ax2.barh(by_category.index, by_category.abs())
-    ax2.set_title("Expenses by Account")
-    fig2.tight_layout()
-    fig2.savefig("/tmp/expenses_by_account.png")
-    charts.append("/tmp/expenses_by_account.png")
     st.bar_chart(by_category.abs())
 
-    # 3. Top Revenue Sources
-    if "Name" in df.columns:
-        top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().sort_values(ascending=False).head(10)
-        fig3, ax3 = plt.subplots(figsize=(10, 6))
-        ax3.bar(top_sources.index, top_sources.values)
-        ax3.set_title("Top Revenue Sources")
-        plt.xticks(rotation=45, ha='right')
-        fig3.tight_layout()
-        fig3.savefig("/tmp/top_revenue_sources.png")
-        charts.append("/tmp/top_revenue_sources.png")
-        st.bar_chart(top_sources)
+    st.subheader("Expense Distribution")
+    fig1, ax1 = plt.subplots()
+    ax1.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
+    ax1.axis("equal")
+    st.pyplot(fig1)
 
-    # 4. Monthly Trend
+    st.subheader("30-Day Cash Flow Projection")
+    daily_avg = daily_totals["Amount"].mean()
+    future_dates = pd.date_range(start=daily_totals["Date"].max() + timedelta(days=1), periods=30)
+    forecast_df = pd.DataFrame({"Date": future_dates, "Amount": daily_avg})
+    st.line_chart(forecast_df.set_index("Date"))
+    st.markdown("---")
+
+    if budget_file is not None:
+        st.subheader("Budget vs Actuals")
+        budget_df = pd.read_csv(budget_file)
+        budget_df.columns = budget_df.columns.str.strip()
+        budget_df["Account"] = budget_df["Account"].str.strip()
+        if {"Account", "Budget Amount"}.issubset(budget_df.columns):
+            actuals = df.groupby("Account")["Amount"].sum()
+            comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
+            comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
+            comparison["Variance %"] = (comparison["Variance"] / budget_df["Budget Amount"].replace(0, 1)) * 100
+            st.dataframe(comparison)
+            st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
+
+    st.subheader("Trend Analysis")
     monthly_trend = df.groupby(df["Date"].dt.to_period("M"))["Amount"].sum().reset_index()
     monthly_trend["Date"] = monthly_trend["Date"].astype(str)
-    fig4, ax4 = plt.subplots()
-    ax4.plot(monthly_trend["Date"], monthly_trend["Amount"])
-    ax4.set_title("Monthly Financial Trend")
-    plt.xticks(rotation=45, ha='right')
-    fig4.tight_layout()
-    fig4.savefig("/tmp/monthly_trend.png")
-    charts.append("/tmp/monthly_trend.png")
     st.line_chart(monthly_trend.set_index("Date"))
 
-    # --- PDF Report Generation ---
-    class PDF(FPDF):
-        def header(self):
-            self.set_font("Arial", "B", 14)
-            self.cell(0, 10, "FundSight Financial Report", ln=True, align="C")
+    if "Name" in df.columns:
+        st.subheader("Top Revenue Sources")
+        top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().sort_values(ascending=False).head(10)
+        st.bar_chart(top_sources)
 
-        def chapter_title(self, title):
-            self.set_font("Arial", "B", 12)
-            self.cell(0, 10, f"{title}", ln=True, align="L")
+    st.subheader("Monthly Expense Drill-down")
+    expense_by_month = expense_df.groupby([df["Date"].dt.to_period("M"), "Account"])["Amount"].sum().unstack().fillna(0)
+    st.line_chart(expense_by_month.abs())
 
-        def add_chart(self, image_path):
-            self.image(image_path, w=180)
-            self.ln(10)
+    st.subheader("Key Financial Ratios")
+    cash_on_hand = df["Amount"].sum()
+    monthly_expense_avg = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
+    kpis = {
+        "Days Cash on Hand": (cash_on_hand / monthly_expense_avg * 30) if monthly_expense_avg else 0,
+        "Program Expense Ratio": abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0,
+    }
+    for label, value in kpis.items():
+        st.metric(label, f"{value:,.1f}" if "Ratio" not in label else f"{value:.2%}")
 
-    pdf = PDF()
-    pdf.add_page()
+    st.subheader("Alerts")
+    cash_threshold = st.number_input("Set Minimum Cash Threshold", value=5000)
+    if cash_on_hand < cash_threshold:
+        st.error(f"Alert: Cash on hand is below threshold (${cash_threshold})")
+    else:
+        st.success("Cash on hand is above the safe threshold.")
 
-    # 📄 Summary Section
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "📊 Financial Summary", ln=True)
-    pdf.set_font("Arial", '', 12)
-    pdf.cell(0, 10, f"🟢 Total Income: ${income:,.2f}", ln=True)
-    pdf.cell(0, 10, f"🔴 Total Expenses: ${expenses:,.2f}", ln=True)
-    pdf.cell(0, 10, f"💰 Net Cash Flow: ${net:,.2f}", ln=True)
-    pdf.ln(5)
+    st.subheader("Scenario Modeling")
+    donation_increase = st.slider("Increase Donations by (%)", -50, 100, 0)
+    expense_reduction = st.slider("Reduce Expenses by (%)", 0, 50, 0)
+    scenario_income = income * (1 + donation_increase / 100)
+    scenario_expense = expenses * (1 - expense_reduction / 100)
+    scenario_net = scenario_income + scenario_expense
+    st.write(f"Scenario Net Cash Flow: ${scenario_net:,.2f}")
 
-    for chart in charts:
-        pdf.chapter_title(os.path.splitext(os.path.basename(chart))[0].replace("_", " ").title())
-        pdf.add_chart(chart)
+    st.subheader("Multi-Year Comparison")
+    if df["Date"].dt.year.nunique() > 1:
+        multi_year = df.groupby(df["Date"].dt.year)["Amount"].sum()
+        st.bar_chart(multi_year)
 
-    pdf_path = f"/tmp/{selected_client}_fundsight_report.pdf"
-    pdf.output(pdf_path)
-
-    # 📧 EMAIL REPORT
-    st.subheader("📧 Send Full Report via Email (PDF)")
-    if st.button("Send Report to jacob.b.franco@gmail.com"):
+    st.subheader("Generate and Send Summary PDF Report")
+    if st.button("Send PDF Report"):
         try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(200, 10, f"FundSight Financial Summary - {selected_client}", ln=True)
+
+            pdf.set_font("Arial", size=12)
+            pdf.ln(10)
+            pdf.cell(200, 10, f"Total Income: ${income:,.2f}", ln=True)
+            pdf.cell(200, 10, f"Total Expenses: ${expenses:,.2f}", ln=True)
+            pdf.cell(200, 10, f"Net Cash Flow: ${net:,.2f}", ln=True)
+            pdf.ln(10)
+            pdf.cell(200, 10, f"Days Cash on Hand: {kpis['Days Cash on Hand']:.1f}", ln=True)
+            pdf.cell(200, 10, f"Program Expense Ratio: {kpis['Program Expense Ratio']:.2%}", ln=True)
+
+            chart_path = "/tmp/expense_chart.png"
+            fig2, ax2 = plt.subplots()
+            by_category.abs().plot(kind='barh', ax=ax2)
+            ax2.set_title("Expenses by Category")
+            fig2.tight_layout()
+            fig2.savefig(chart_path)
+            pdf.image(chart_path, x=10, y=pdf.get_y() + 10, w=180)
+
+            pdf_path = "/tmp/fundsight_summary.pdf"
+            pdf.output(pdf_path)
+
+            # Email summary content (body)
+            email_body = f"""Hello,
+
+Attached is the FundSight financial summary report for {selected_client}.
+
+--- Dashboard Summary ---
+Total Income: ${income:,.2f}
+Total Expenses: ${expenses:,.2f}
+Net Cash Flow: ${net:,.2f}
+Days Cash on Hand: {kpis['Days Cash on Hand']:.1f}
+Program Expense Ratio: {kpis['Program Expense Ratio']:.2%}
+
+Regards,
+FundSight Automated Report
+"""
+
+            # Email setup
             sender_email = st.secrets["email_user"]
             sender_password = st.secrets["email_password"]
             msg = MIMEMultipart()
             msg["From"] = sender_email
             msg["To"] = "jacob.b.franco@gmail.com"
-            msg["Subject"] = f"FundSight PDF Report - {selected_client}"
-            body = f"""Attached is the full PDF FundSight report for {selected_client}.
-
-🟢 Total Income: ${income:,.2f}
-🔴 Total Expenses: ${expenses:,.2f}
-💰 Net Cash Flow: ${net:,.2f}
-"""
-            msg.attach(MIMEText(body, "plain"))
+            msg["Subject"] = f"FundSight Dashboard Report - {selected_client}"
+            msg.attach(MIMEText(email_body, "plain"))
 
             with open(pdf_path, "rb") as f:
-                part = MIMEApplication(f.read(), _subtype="pdf")
-                part.add_header('Content-Disposition', 'attachment', filename=os.path.basename(pdf_path))
-                msg.attach(part)
+                attachment = MIMEText(f.read(), "base64", "utf-8")
+                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_summary.pdf")
+                msg.attach(attachment)
 
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
             server.login(sender_email, sender_password)
             server.sendmail(msg["From"], msg["To"], msg.as_string())
             server.quit()
-            st.success("✅ PDF Report sent successfully.")
+
+            st.success("✅ PDF Report with dashboard summary sent successfully.")
+
         except Exception as e:
-            st.error(f"❌ Failed to send PDF: {e}")
+            st.error(f"❌ Failed to send report: {e}")
 
 else:
-    st.info("📤 Please upload a QuickBooks CSV file to get started.")
+    st.info("Please upload a QuickBooks CSV file to get started.")
