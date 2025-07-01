@@ -40,7 +40,7 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # Daily Cash Flow Trend
+    # Daily Cash Flow
     st.subheader("📈 Daily Cash Flow Trend")
     daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
     fig1, ax1 = plt.subplots()
@@ -79,7 +79,7 @@ if uploaded_file:
     })
     fig4, ax4 = plt.subplots()
     ax4.plot(forecast_df["Date"], forecast_df["Amount"])
-    ax4.set_title("30-Day Cash Flow Forecast")
+    ax4.set_title("30-Day Forecast")
     fig4.tight_layout()
     st.pyplot(fig4)
     fig4.savefig("/tmp/forecast_chart.png")
@@ -158,14 +158,15 @@ if uploaded_file:
     expense_reduction = st.slider("Expense Reduction (%)", 0, 50, 0)
     scenario_income = income * (1 + donation_increase / 100)
     scenario_expense = expenses * (1 - expense_reduction / 100)
-    st.write(f"📈 Projected Net Cash Flow: ${scenario_income + scenario_expense:,.2f}")
+    scenario_net = scenario_income + scenario_expense
+    st.write(f"📈 Projected Net Cash Flow: ${scenario_net:,.2f}")
 
     # Multi-Year Comparison
     st.subheader("📆 Multi-Year Comparison")
     if df["Date"].dt.year.nunique() > 1:
         st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # EMAIL REPORT
+    # Email PDF Report
     st.subheader("📧 Send Full Report as PDF")
     if st.button("Send PDF Report"):
         try:
@@ -180,7 +181,7 @@ Total Expenses: ${expenses:,.2f}
 Net Cash Flow: ${net:,.2f}
 Days Cash on Hand: {days_cash:.1f}
 Program Expense Ratio: {program_ratio:.2%}
-Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
+Projected Scenario Cash Flow: ${scenario_net:,.2f}
 """)
 
             for chart in [
@@ -196,11 +197,29 @@ Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
             pdf_path = "/tmp/fundsight_report.pdf"
             pdf.output(pdf_path)
 
+            # Summary for Email
+            email_summary = f"""Hello,
+
+Attached is the FundSight dashboard report for {selected_client}.
+
+📊 Summary:
+• Total Income: ${income:,.2f}
+• Total Expenses: ${expenses:,.2f}
+• Net Cash Flow: ${net:,.2f}
+• Days Cash on Hand: {days_cash:.1f}
+• Program Expense Ratio: {program_ratio:.2%}
+• Scenario Net Cash Flow: ${scenario_net:,.2f}
+
+Best regards,
+FundSight Automated Reporting
+"""
+
+            # Email setup
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email_user"]
             msg["To"] = "jacob.b.franco@gmail.com"
             msg["Subject"] = f"FundSight Report – {selected_client}"
-            msg.attach(MIMEText("Attached is your full FundSight dashboard report."))
+            msg.attach(MIMEText(email_summary, "plain"))
 
             with open(pdf_path, "rb") as f:
                 attach = MIMEApplication(f.read(), _subtype="pdf")
@@ -213,9 +232,10 @@ Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
             server.sendmail(msg["From"], msg["To"], msg.as_string())
             server.quit()
 
-            st.success("✅ Report sent via email!")
+            st.success("✅ Report with summary sent via email!")
         except Exception as e:
             st.error(f"❌ Error sending report: {e}")
+
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
 
