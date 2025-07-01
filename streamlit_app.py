@@ -1,5 +1,3 @@
-# Full Streamlit App with complete dashboard and email-PDF functionality
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
