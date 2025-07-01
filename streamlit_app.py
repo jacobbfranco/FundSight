@@ -3,10 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from datetime import timedelta
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from fpdf import FPDF
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
+from email.mime.text import MIMEText
 import tempfile
 import os
 
@@ -51,10 +52,10 @@ if uploaded_file:
     st.bar_chart(by_category.abs())
 
     st.subheader("🧁 Expense Distribution")
-    fig1, ax1 = plt.subplots()
-    ax1.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
-    ax1.axis("equal")
-    st.pyplot(fig1)
+    fig, ax = plt.subplots()
+    ax.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
+    ax.axis("equal")
+    st.pyplot(fig)
 
     st.subheader("📅 30-Day Cash Flow Projection")
     daily_avg = daily_totals["Amount"].mean()
@@ -118,53 +119,81 @@ if uploaded_file:
     scenario_net = scenario_income + scenario_expense
     st.write(f"📈 Scenario Net Cash Flow: ${scenario_net:,.2f}")
 
+    st.subheader("📆 Multi-Year Comparison")
+    if df["Date"].dt.year.nunique() > 1:
+        multi_year = df.groupby(df["Date"].dt.year)["Amount"].sum()
+        st.bar_chart(multi_year)
+
     st.subheader("📥 Downloadable Report")
     report = df.copy()
     report["Year"] = report["Date"].dt.year
-    csv = report.to_csv(index=False)
-    st.download_button("Download Full Data CSV", csv, "fundsight_report.csv", "text/csv")
+    csv_data = report.to_csv(index=False)
+    st.download_button("Download Full Data CSV", csv_data, "fundsight_report.csv", "text/csv")
 
+    # --- EMAIL REPORT WITH PDF ---
     st.subheader("📧 Send Report via Email")
+
     if st.button("Send PDF Report to jacob.b.franco@gmail.com"):
         try:
-            sender_email = st.secrets["email_user"]
-            sender_password = st.secrets["email_password"]
+            # Generate chart image for PDF
+            chart_path = tempfile.NamedTemporaryFile(delete=False, suffix=".png").name
+            plt.figure(figsize=(4, 3))
+            plt.bar(by_category.index, by_category.abs())
+            plt.title("Expenses by Account")
+            plt.ylabel("Amount ($)")
+            plt.tight_layout()
+            plt.savefig(chart_path)
+            plt.close()
 
-            pdf = FPDF()
+            # Generate PDF
+            class PDF(FPDF):
+                def header(self):
+                    self.set_font("Arial", "B", 14)
+                    self.cell(0, 10, "FundSight Report", ln=True, align="C")
+
+                def footer(self):
+                    self.set_y(-15)
+                    self.set_font("Arial", "I", 8)
+                    self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+            pdf = PDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt=f"FundSight Summary Report - {selected_client}", ln=True, align='C')
+            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+            pdf.cell(0, 10, f"Total Income: ${income:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Expenses: ${expenses:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Net Cash Flow: ${net:,.2f}", ln=True)
             pdf.ln(10)
-            pdf.multi_cell(0, 10, txt=f"Net Cash Flow: ${net:,.2f}\nTotal Income: ${income:,.2f}\nTotal Expenses: ${expenses:,.2f}\n\nCash on Hand: ${cash_on_hand:,.2f}\nProgram Expense Ratio: {kpis['📊 Program Expense Ratio']:.2%}")
-
-            pdf_path = os.path.join(tempfile.gettempdir(), f"{selected_client}_summary.pdf")
+            pdf.cell(0, 10, "Expenses by Account:", ln=True)
+            pdf.image(chart_path, w=pdf.w - 40)
+            pdf_path = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf").name
             pdf.output(pdf_path)
+
+            # Send email
+            sender_email = st.secrets["email_user"]
+            sender_password = st.secrets["email_password"]
+            recipient = "jacob.b.franco@gmail.com"
 
             msg = MIMEMultipart()
             msg["From"] = sender_email
-            msg["To"] = "jacob.b.franco@gmail.com"
-            msg["Subject"] = f"FundSight Report - {selected_client}"
-            body = f"""Attached is the FundSight PDF report for {selected_client}.
+            msg["To"] = recipient
+            msg["Subject"] = f"FundSight PDF Report - {selected_client}"
+            msg.attach(MIMEText(f"Attached is the PDF report for {selected_client}.", "plain"))
 
-Net Cash Flow: ${net:,.2f}
-View the full dashboard at: https://fundsight.streamlit.app
-"""
-            msg.attach(MIMEText(body, "plain"))
-
-            with open(pdf_path, "rb") as file:
-                attachment = MIMEText(file.read(), "base64", "utf-8")
-                attachment.add_header("Content-Disposition", "attachment", filename=f"{selected_client}_summary.pdf")
-                msg.attach(attachment)
+            with open(pdf_path, "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header("Content-Disposition", "attachment", filename="fundsight_report.pdf")
+                msg.attach(part)
 
             server = smtplib.SMTP("smtp.gmail.com", 587)
             server.starttls()
             server.login(sender_email, sender_password)
-            server.sendmail(msg["From"], msg["To"], msg.as_string())
+            server.sendmail(sender_email, recipient, msg.as_string())
             server.quit()
 
             st.success("✅ PDF Report sent successfully.")
         except Exception as e:
-            st.error(f"❌ Failed to send PDF email: {e}")
+            st.error(f"❌ Failed to send email: {e}")
 
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
