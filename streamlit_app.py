@@ -1,30 +1,30 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
 from datetime import timedelta
-from fpdf import FPDF
 import smtplib
+from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from email.mime.text import MIMEText
-import tempfile
+from fpdf import FPDF
 import os
 
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
 st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
 
-# --- MULTI-CLIENT SUPPORT ---
+# --- MULTI-CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
-clients = ["Client A", "Client B", "Client C"]
-selected_client = st.sidebar.selectbox("Select Client", clients)
+client_names = ["Client A", "Client B", "Client C"]
+selected_client = st.sidebar.selectbox("Select Client", client_names)
 
-# --- FILE UPLOAD ---
+# Uploads
 st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 
-# --- PROCESSING ---
 if uploaded_file:
+    st.markdown(f"### 📂 Dashboard for `{selected_client}`")
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
     df["Account"] = df["Account"].str.strip()
@@ -34,128 +34,125 @@ if uploaded_file:
     income = df[df["Amount"] > 0]["Amount"].sum()
     expenses = df[df["Amount"] < 0]["Amount"].sum()
     net = income + expenses
-    st.metric("🟢 Total Income", f"${income:,.2f}")
-    st.metric("🔴 Total Expenses", f"${expenses:,.2f}")
-    st.metric("💰 Net Cash Flow", f"${net:,.2f}")
 
-    # --- CHARTS TO ADD TO PDF ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🟢 Total Income", f"${income:,.2f}")
+    col2.metric("🔴 Total Expenses", f"${expenses:,.2f}")
+    col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
+    st.markdown("---")
+
+    # 📊 Charts and graphs
     charts = []
 
-    def save_chart(fig, name):
-        temp_path = os.path.join(tempfile.gettempdir(), f"{name}.png")
-        fig.savefig(temp_path, bbox_inches='tight')
-        charts.append(temp_path)
+    # 1. Daily Cash Flow
+    daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
+    fig1, ax1 = plt.subplots()
+    ax1.plot(daily_totals["Date"], daily_totals["Amount"])
+    ax1.set_title("Daily Cash Flow")
+    fig1.tight_layout()
+    fig1.savefig("/tmp/daily_cash_flow.png")
+    charts.append("/tmp/daily_cash_flow.png")
+    st.line_chart(daily_totals.set_index("Date"))
 
-    # --- DAILY CASH FLOW ---
-    st.subheader("📈 Daily Cash Flow Trend")
-    daily_totals = df.groupby("Date")["Amount"].sum()
-    fig, ax = plt.subplots()
-    daily_totals.plot(ax=ax, title="Daily Cash Flow")
-    st.pyplot(fig)
-    save_chart(fig, "daily_cash_flow")
-
-    # --- EXPENSES BY ACCOUNT ---
-    st.subheader("📊 Expenses by Account Category")
+    # 2. Expenses by Account
     expense_df = df[df["Amount"] < 0]
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
-    fig, ax = plt.subplots(figsize=(10, 6))
-    by_category.abs().plot(kind="barh", ax=ax, title="Expenses by Account")
-    ax.set_xlabel("Amount")
-    st.pyplot(fig)
-    save_chart(fig, "expenses_by_account")
+    fig2, ax2 = plt.subplots(figsize=(10, 6))
+    ax2.barh(by_category.index, by_category.abs())
+    ax2.set_title("Expenses by Account")
+    fig2.tight_layout()
+    fig2.savefig("/tmp/expenses_by_account.png")
+    charts.append("/tmp/expenses_by_account.png")
+    st.bar_chart(by_category.abs())
 
-    # --- EXPENSE PIE ---
-    st.subheader("🧁 Expense Distribution")
-    fig, ax = plt.subplots()
-    ax.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
-    ax.axis("equal")
-    st.pyplot(fig)
-    save_chart(fig, "expense_distribution")
-
-    # --- FORECAST ---
-    st.subheader("📅 30-Day Cash Flow Forecast")
-    daily_avg = daily_totals.mean()
-    future_dates = pd.date_range(start=daily_totals.index.max() + timedelta(days=1), periods=30)
-    forecast_df = pd.DataFrame({"Date": future_dates, "Amount": daily_avg})
-    fig, ax = plt.subplots()
-    forecast_df.set_index("Date").plot(ax=ax, title="30-Day Cash Flow Forecast")
-    st.pyplot(fig)
-    save_chart(fig, "cash_flow_forecast")
-
-    # --- BUDGET VS ACTUAL ---
-    if budget_file is not None:
-        budget_df = pd.read_csv(budget_file)
-        budget_df.columns = budget_df.columns.str.strip()
-        budget_df["Account"] = budget_df["Account"].str.strip()
-        actuals = df.groupby("Account")["Amount"].sum()
-        comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
-        comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
-        st.subheader("📋 Budget vs Actuals")
-        st.dataframe(comparison)
-        fig, ax = plt.subplots(figsize=(10, 6))
-        comparison.set_index("Account")[["Budget Amount", "Actual"]].abs().plot(kind="bar", ax=ax, title="Budget vs Actuals")
-        st.pyplot(fig)
-        save_chart(fig, "budget_vs_actuals")
-
-    # --- REVENUE SOURCES ---
+    # 3. Top Revenue Sources
     if "Name" in df.columns:
-        top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().nlargest(10)
-        st.subheader("💌 Top Revenue Sources")
-        fig, ax = plt.subplots()
-        top_sources.plot(kind="bar", ax=ax, title="Top Revenue Sources")
-        st.pyplot(fig)
-        save_chart(fig, "top_revenue_sources")
+        top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().sort_values(ascending=False).head(10)
+        fig3, ax3 = plt.subplots(figsize=(10, 6))
+        ax3.bar(top_sources.index, top_sources.values)
+        ax3.set_title("Top Revenue Sources")
+        plt.xticks(rotation=45, ha='right')
+        fig3.tight_layout()
+        fig3.savefig("/tmp/top_revenue_sources.png")
+        charts.append("/tmp/top_revenue_sources.png")
+        st.bar_chart(top_sources)
 
-    # --- MULTI-YEAR COMPARISON ---
-    st.subheader("📆 Multi-Year Comparison")
-    df["Year"] = df["Date"].dt.year
-    if df["Year"].nunique() > 1:
-        multi_year = df.groupby("Year")["Amount"].sum()
-        fig, ax = plt.subplots()
-        multi_year.plot(kind="bar", ax=ax, title="Multi-Year Totals")
-        st.pyplot(fig)
-        save_chart(fig, "multi_year_comparison")
+    # 4. Monthly Trend
+    monthly_trend = df.groupby(df["Date"].dt.to_period("M"))["Amount"].sum().reset_index()
+    monthly_trend["Date"] = monthly_trend["Date"].astype(str)
+    fig4, ax4 = plt.subplots()
+    ax4.plot(monthly_trend["Date"], monthly_trend["Amount"])
+    ax4.set_title("Monthly Financial Trend")
+    plt.xticks(rotation=45, ha='right')
+    fig4.tight_layout()
+    fig4.savefig("/tmp/monthly_trend.png")
+    charts.append("/tmp/monthly_trend.png")
+    st.line_chart(monthly_trend.set_index("Date"))
 
-    # --- PDF GENERATION ---
-    st.subheader("📧 Send PDF Report via Email")
+    # --- PDF Report Generation ---
+    class PDF(FPDF):
+        def header(self):
+            self.set_font("Arial", "B", 14)
+            self.cell(0, 10, "FundSight Financial Report", ln=True, align="C")
 
-    if st.button("Send Report"):
+        def chapter_title(self, title):
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 10, f"{title}", ln=True, align="L")
+
+        def add_chart(self, image_path):
+            self.image(image_path, w=180)
+            self.ln(10)
+
+    pdf = PDF()
+    pdf.add_page()
+
+    # 📄 Summary Section
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(0, 10, "📊 Financial Summary", ln=True)
+    pdf.set_font("Arial", '', 12)
+    pdf.cell(0, 10, f"🟢 Total Income: ${income:,.2f}", ln=True)
+    pdf.cell(0, 10, f"🔴 Total Expenses: ${expenses:,.2f}", ln=True)
+    pdf.cell(0, 10, f"💰 Net Cash Flow: ${net:,.2f}", ln=True)
+    pdf.ln(5)
+
+    for chart in charts:
+        pdf.chapter_title(os.path.splitext(os.path.basename(chart))[0].replace("_", " ").title())
+        pdf.add_chart(chart)
+
+    pdf_path = f"/tmp/{selected_client}_fundsight_report.pdf"
+    pdf.output(pdf_path)
+
+    # 📧 EMAIL REPORT
+    st.subheader("📧 Send Full Report via Email (PDF)")
+    if st.button("Send Report to jacob.b.franco@gmail.com"):
         try:
-            pdf = FPDF()
-            pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(0, 10, f"FundSight Report - {selected_client}", ln=True)
-            pdf.ln(10)
-            pdf.set_font("Arial", "", 12)
-            pdf.multi_cell(0, 10, f"Net Cash Flow: ${net:,.2f}\n\n")
-
-            for chart_path in charts:
-                pdf.add_page()
-                pdf.image(chart_path, x=10, w=190)
-
-            temp_pdf = os.path.join(tempfile.gettempdir(), f"{selected_client}_fundsight_report.pdf")
-            pdf.output(temp_pdf)
-
+            sender_email = st.secrets["email_user"]
+            sender_password = st.secrets["email_password"]
             msg = MIMEMultipart()
-            msg["From"] = st.secrets["email_user"]
+            msg["From"] = sender_email
             msg["To"] = "jacob.b.franco@gmail.com"
-            msg["Subject"] = f"FundSight Dashboard Report - {selected_client}"
-            msg.attach(MIMEText("Attached is your FundSight dashboard PDF report.", "plain"))
+            msg["Subject"] = f"FundSight PDF Report - {selected_client}"
+            body = f"""Attached is the full PDF FundSight report for {selected_client}.
 
-            with open(temp_pdf, "rb") as f:
-                part = MIMEApplication(f.read(), Name=os.path.basename(temp_pdf))
-                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(temp_pdf)}"'
+🟢 Total Income: ${income:,.2f}
+🔴 Total Expenses: ${expenses:,.2f}
+💰 Net Cash Flow: ${net:,.2f}
+"""
+            msg.attach(MIMEText(body, "plain"))
+
+            with open(pdf_path, "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header('Content-Disposition', 'attachment', filename=os.path.basename(pdf_path))
                 msg.attach(part)
 
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(st.secrets["email_user"], st.secrets["email_password"])
-                server.send_message(msg)
-
-            st.success("✅ Report emailed successfully!")
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(sender_email, sender_password)
+            server.sendmail(msg["From"], msg["To"], msg.as_string())
+            server.quit()
+            st.success("✅ PDF Report sent successfully.")
         except Exception as e:
-            st.error(f"❌ Failed to send email: {e}")
+            st.error(f"❌ Failed to send PDF: {e}")
 
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
