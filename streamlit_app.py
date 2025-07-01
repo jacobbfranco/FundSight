@@ -32,6 +32,7 @@ if uploaded_file:
     income = df[df["Amount"] > 0]["Amount"].sum()
     expenses = df[df["Amount"] < 0]["Amount"].sum()
     net = income + expenses
+    cash_on_hand = df["Amount"].sum()
 
     col1, col2, col3 = st.columns(3)
     col1.metric("🟢 Total Income", f"${income:,.2f}")
@@ -39,25 +40,35 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # Daily Cash Flow
+    # Daily Cash Flow Trend
     st.subheader("📈 Daily Cash Flow Trend")
     daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
-    st.line_chart(daily_totals.set_index("Date"))
+    fig1, ax1 = plt.subplots()
+    ax1.plot(daily_totals["Date"], daily_totals["Amount"])
+    ax1.set_title("Daily Cash Flow")
+    ax1.tick_params(axis='x', rotation=45)
+    fig1.tight_layout()
+    st.pyplot(fig1)
+    fig1.savefig("/tmp/daily_cash_flow.png")
 
     # Expenses by Category
     st.subheader("📊 Expenses by Account Category")
     expense_df = df[df["Amount"] < 0]
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
-    st.bar_chart(by_category.abs())
+    fig2, ax2 = plt.subplots()
+    by_category.abs().plot(kind='barh', ax=ax2)
+    ax2.set_title("Expenses by Category")
+    fig2.tight_layout()
+    st.pyplot(fig2)
+    fig2.savefig("/tmp/expense_bar_chart.png")
 
     # Pie Chart
     st.subheader("🧁 Expense Distribution")
-    fig1, ax1 = plt.subplots()
-    ax1.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
-    ax1.axis("equal")
-    pie_chart_path = "/tmp/expense_pie_chart.png"
-    fig1.savefig(pie_chart_path)
-    st.pyplot(fig1)
+    fig3, ax3 = plt.subplots()
+    ax3.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
+    ax3.axis("equal")
+    st.pyplot(fig3)
+    fig3.savefig("/tmp/expense_pie_chart.png")
 
     # 30-Day Forecast
     st.subheader("📅 30-Day Cash Flow Projection")
@@ -66,7 +77,12 @@ if uploaded_file:
         "Date": pd.date_range(daily_totals["Date"].max() + timedelta(days=1), periods=30),
         "Amount": daily_avg
     })
-    st.line_chart(forecast_df.set_index("Date"))
+    fig4, ax4 = plt.subplots()
+    ax4.plot(forecast_df["Date"], forecast_df["Amount"])
+    ax4.set_title("30-Day Cash Flow Forecast")
+    fig4.tight_layout()
+    st.pyplot(fig4)
+    fig4.savefig("/tmp/forecast_chart.png")
 
     # Budget vs Actuals
     if budget_file is not None:
@@ -80,28 +96,48 @@ if uploaded_file:
             comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
             comparison["Variance %"] = (comparison["Variance"] / budget_df["Budget Amount"].replace(0, 1)) * 100
             st.dataframe(comparison)
-            st.bar_chart(comparison.set_index("Account")[["Budget Amount", "Actual"]].abs())
+            fig5, ax5 = plt.subplots()
+            comparison.set_index("Account")[["Budget Amount", "Actual"]].abs().plot(kind='bar', ax=ax5)
+            ax5.set_title("Budget vs Actuals")
+            fig5.tight_layout()
+            st.pyplot(fig5)
+            fig5.savefig("/tmp/budget_vs_actuals.png")
 
     # Trend Analysis
     st.subheader("📉 Trend Analysis")
     monthly_trend = df.groupby(df["Date"].dt.to_period("M"))["Amount"].sum().reset_index()
     monthly_trend["Date"] = monthly_trend["Date"].astype(str)
-    st.line_chart(monthly_trend.set_index("Date"))
+    fig6, ax6 = plt.subplots()
+    ax6.plot(monthly_trend["Date"], monthly_trend["Amount"])
+    ax6.set_title("Monthly Trend")
+    ax6.tick_params(axis='x', rotation=45)
+    fig6.tight_layout()
+    st.pyplot(fig6)
+    fig6.savefig("/tmp/monthly_trend.png")
 
     # Top Revenue Sources
     if "Name" in df.columns:
         st.subheader("💌 Top Revenue Sources")
         top_sources = df[df["Amount"] > 0].groupby("Name")["Amount"].sum().sort_values(ascending=False).head(10)
-        st.bar_chart(top_sources)
+        fig7, ax7 = plt.subplots()
+        top_sources.plot(kind="bar", ax=ax7)
+        ax7.set_title("Top Revenue Sources")
+        fig7.tight_layout()
+        st.pyplot(fig7)
+        fig7.savefig("/tmp/top_sources.png")
 
     # Monthly Drill-down
     st.subheader("🔍 Monthly Expense Drill-down")
     monthly_expense = expense_df.groupby([df["Date"].dt.to_period("M"), "Account"])["Amount"].sum().unstack().fillna(0)
-    st.line_chart(monthly_expense.abs())
+    fig8, ax8 = plt.subplots()
+    monthly_expense.abs().plot(ax=ax8)
+    ax8.set_title("Monthly Expense Drill-down")
+    fig8.tight_layout()
+    st.pyplot(fig8)
+    fig8.savefig("/tmp/monthly_expense_drilldown.png")
 
     # Financial Ratios
     st.subheader("📊 Key Financial Ratios")
-    cash_on_hand = df["Amount"].sum()
     monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
     days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
     program_ratio = abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0
@@ -122,15 +158,14 @@ if uploaded_file:
     expense_reduction = st.slider("Expense Reduction (%)", 0, 50, 0)
     scenario_income = income * (1 + donation_increase / 100)
     scenario_expense = expenses * (1 - expense_reduction / 100)
-    scenario_net = scenario_income + scenario_expense
-    st.write(f"📈 Projected Net Cash Flow: ${scenario_net:,.2f}")
+    st.write(f"📈 Projected Net Cash Flow: ${scenario_income + scenario_expense:,.2f}")
 
     # Multi-Year Comparison
     st.subheader("📆 Multi-Year Comparison")
     if df["Date"].dt.year.nunique() > 1:
         st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # Send PDF Report
+    # EMAIL REPORT
     st.subheader("📧 Send Full Report as PDF")
     if st.button("Send PDF Report"):
         try:
@@ -138,33 +173,34 @@ if uploaded_file:
             pdf.add_page()
             pdf.set_font("Arial", size=12)
             pdf.cell(200, 10, f"FundSight Financial Summary - {selected_client}", ln=True)
+            pdf.ln(10)
+            pdf.multi_cell(0, 10, f"""
+Total Income: ${income:,.2f}
+Total Expenses: ${expenses:,.2f}
+Net Cash Flow: ${net:,.2f}
+Days Cash on Hand: {days_cash:.1f}
+Program Expense Ratio: {program_ratio:.2%}
+Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
+""")
 
-            # Summary section
-            pdf.ln(5)
-            summary_text = (
-                f"Total Income: ${income:,.2f}\n"
-                f"Total Expenses: ${expenses:,.2f}\n"
-                f"Net Cash Flow: ${net:,.2f}\n"
-                f"Days Cash on Hand: {days_cash:.1f}\n"
-                f"Program Expense Ratio: {program_ratio:.2%}\n"
-                f"Projected Net Cash Flow (Scenario): ${scenario_net:,.2f}"
-            )
-            for line in summary_text.split("\n"):
-                pdf.multi_cell(0, 10, txt=line)
-
-            # Insert pie chart
-            pdf.ln(5)
-            pdf.image(pie_chart_path, x=10, w=180)
+            for chart in [
+                "/tmp/daily_cash_flow.png", "/tmp/expense_bar_chart.png",
+                "/tmp/expense_pie_chart.png", "/tmp/forecast_chart.png",
+                "/tmp/budget_vs_actuals.png", "/tmp/monthly_trend.png",
+                "/tmp/top_sources.png", "/tmp/monthly_expense_drilldown.png"
+            ]:
+                if os.path.exists(chart):
+                    pdf.add_page()
+                    pdf.image(chart, x=10, w=190)
 
             pdf_path = "/tmp/fundsight_report.pdf"
             pdf.output(pdf_path)
 
-            # Email with PDF
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email_user"]
             msg["To"] = "jacob.b.franco@gmail.com"
-            msg["Subject"] = f"FundSight Dashboard - {selected_client}"
-            msg.attach(MIMEText("Attached is your full dashboard report from FundSight."))
+            msg["Subject"] = f"FundSight Report – {selected_client}"
+            msg.attach(MIMEText("Attached is your full FundSight dashboard report."))
 
             with open(pdf_path, "rb") as f:
                 attach = MIMEApplication(f.read(), _subtype="pdf")
@@ -180,7 +216,6 @@ if uploaded_file:
             st.success("✅ Report sent via email!")
         except Exception as e:
             st.error(f"❌ Error sending report: {e}")
-
 else:
     st.info("📤 Please upload a QuickBooks CSV file to get started.")
 
