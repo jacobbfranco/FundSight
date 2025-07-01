@@ -101,6 +101,7 @@ if uploaded_file:
 
     # Financial Ratios
     st.subheader("📊 Key Financial Ratios")
+    cash_on_hand = df["Amount"].sum()
     monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
     days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
     program_ratio = abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0
@@ -135,18 +136,18 @@ if uploaded_file:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, f"FundSight Financial Summary – {selected_client}", ln=True)
+            pdf.cell(200, 10, f"FundSight Financial Summary - {selected_client}", ln=True)
 
             # Add summary
             pdf.ln(5)
-            pdf.multi_cell(0, 10, f"""
-Total Income: ${income:,.2f}
+            summary_text = f"""Total Income: ${income:,.2f}
 Total Expenses: ${expenses:,.2f}
 Net Cash Flow: ${net:,.2f}
 Days Cash on Hand: {days_cash:.1f}
 Program Expense Ratio: {program_ratio:.2%}
 Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
-""")
+"""
+            pdf.multi_cell(0, 10, summary_text)
 
             pdf.image(pie_chart_path, x=10, w=180)
 
@@ -156,7 +157,7 @@ Projected Scenario Cash Flow: ${scenario_income + scenario_expense:,.2f}
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email_user"]
             msg["To"] = "jacob.b.franco@gmail.com"
-            msg["Subject"] = f"FundSight Dashboard – {selected_client}"
+            msg["Subject"] = f"FundSight Dashboard - {selected_client}"
             msg.attach(MIMEText("Attached is your full dashboard report from FundSight."))
 
             with open(pdf_output, "rb") as f:
