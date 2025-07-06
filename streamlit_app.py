@@ -79,7 +79,7 @@ if uploaded_file:
 # Mortgage Tracker
 if show_mortgage:
     st.subheader("🏠 Mortgage Tracker")
-    mortgage_file = st.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
+    mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
     if mortgage_file:
         mortgage_df = pd.read_csv(mortgage_file)
         if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
@@ -121,6 +121,7 @@ footer = """
 </div>
 """
 st.markdown(footer, unsafe_allow_html=True)
+
 
 
 
