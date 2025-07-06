@@ -9,11 +9,16 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide", page_icon="📊")
+# --------------------
+# SETUP & TITLE
+# --------------------
+st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
-st.title("Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
+st.markdown("### Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
 
-# --- SIDEBAR ---
+# --------------------
+# CLIENT & FILE UPLOADS
+# --------------------
 st.sidebar.header("👥 Client Selection")
 client_names = ["Client A", "Client B", "Client C"]
 selected_client = st.sidebar.selectbox("Select Client", client_names)
@@ -22,8 +27,13 @@ st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
-show_board = st.sidebar.checkbox("📤 Enable Board Report Email")
 
+# Show Email Button
+show_board_email = st.sidebar.checkbox("📤 Enable Board Report Email")
+
+# --------------------
+# MAIN DASHBOARD
+# --------------------
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
@@ -42,54 +52,6 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # Daily Cash Flow
-    st.subheader("📈 Daily Cash Flow Trend")
-    daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
-    fig1, ax1 = plt.subplots()
-    ax1.plot(daily_totals["Date"], daily_totals["Amount"])
-    ax1.set_title("Daily Cash Flow")
-    ax1.tick_params(axis='x', rotation=45)
-    fig1.tight_layout()
-    st.pyplot(fig1)
-    fig1.savefig("daily_cash_flow.png")
-
-    # Expenses by Category
-    st.subheader("📊 Expenses by Account Category")
-    expense_df = df[df["Amount"] < 0]
-    by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
-    fig2, ax2 = plt.subplots()
-    by_category.abs().plot(kind='barh', ax=ax2)
-    ax2.set_title("Expenses by Category")
-    fig2.tight_layout()
-    st.pyplot(fig2)
-    fig2.savefig("expense_bar_chart.png")
-
-    # Forecasting
-    st.subheader("📅 30-Day Cash Flow Projection")
-    daily_avg = daily_totals["Amount"].mean()
-    forecast_df = pd.DataFrame({
-        "Date": pd.date_range(daily_totals["Date"].max() + timedelta(days=1), periods=30),
-        "Amount": daily_avg
-    })
-    fig3, ax3 = plt.subplots()
-    ax3.plot(forecast_df["Date"], forecast_df["Amount"])
-    ax3.set_title("30-Day Forecast")
-    fig3.tight_layout()
-    st.pyplot(fig3)
-    fig3.savefig("forecast_chart.png")
-
-    # Budget vs Actuals
-    if budget_file is not None:
-        st.subheader("📋 Budget vs Actuals")
-        budget_df = pd.read_csv(budget_file)
-        budget_df.columns = budget_df.columns.str.strip()
-        budget_df["Account"] = budget_df["Account"].str.strip()
-        if {"Account", "Budget Amount"}.issubset(budget_df.columns):
-            actuals = df.groupby("Account")["Amount"].sum()
-            merged = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="left").fillna(0)
-            merged["Variance"] = merged["Budget Amount"] - merged["Actual"]
-            st.dataframe(merged)
-
     # Scenario Modeling
     st.subheader("🔄 Scenario Modeling")
     donation_increase = st.slider("Donation Increase (%)", -50, 100, 0)
@@ -104,11 +66,11 @@ if uploaded_file:
     if df["Date"].dt.year.nunique() > 1:
         st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # Key Financial Ratios
+    # Financial Ratios
     st.subheader("📊 Key Financial Ratios")
     monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
     days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
-    program_ratio = abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0
+    program_ratio = abs(df[df["Amount"] < 0]["Amount"].sum()) / abs(df["Amount"].sum())
     st.metric("💵 Days Cash on Hand", f"{days_cash:,.1f}")
     st.metric("📊 Program Expense Ratio", f"{program_ratio:.2%}")
 
@@ -120,54 +82,20 @@ if uploaded_file:
     else:
         st.success("✅ Cash on hand is sufficient.")
 
-    # 📤 Send Board Report
-    st.subheader("📤 Board Report")
-    recipient = st.text_input("Board Email Address", "jacob.b.franco@gmail.com")
-    if st.button("Send PDF Report to Board"):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, f"FundSight Board Summary – {selected_client}", ln=True)
-            pdf.ln(10)
-            summary_text = f"""
-Total Income: ${income:,.2f}
-Total Expenses: ${expenses:,.2f}
-Net Cash Flow: ${net:,.2f}
-Days Cash on Hand: {days_cash:.1f}
-Program Expense Ratio: {program_ratio:.2%}
-Scenario Net Cash Flow: ${scenario_net:,.2f}
-"""
-            pdf.multi_cell(0, 10, summary_text)
-            for chart in ["daily_cash_flow.png", "expense_bar_chart.png", "forecast_chart.png"]:
-                if os.path.exists(chart):
-                    pdf.add_page()
-                    pdf.image(chart, x=10, w=190)
-            pdf_path = "fundsight_report.pdf"
-            pdf.output(pdf_path)
+    # Budget vs Actuals
+    if budget_file:
+        st.subheader("📊 Budget vs Actuals")
+        budget_df = pd.read_csv(budget_file)
+        if "Actual" not in budget_df.columns and "Budget Amount" in budget_df.columns:
+            actuals = df.groupby("Account")["Amount"].sum().reset_index()
+            actuals.rename(columns={"Amount": "Actual"}, inplace=True)
+            budget_df = pd.merge(budget_df, actuals, on="Account", how="left")
+        budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
+        st.dataframe(budget_df)
 
-            msg = MIMEMultipart()
-            msg["From"] = st.secrets["email_user"]
-            msg["To"] = recipient
-            msg["Subject"] = f"FundSight Report – {selected_client}"
-            msg.attach(MIMEText(summary_text, "plain"))
-
-            with open(pdf_path, "rb") as f:
-                attach = MIMEApplication(f.read(), _subtype="pdf")
-                attach.add_header("Content-Disposition", "attachment", filename="fundsight_report.pdf")
-                msg.attach(attach)
-
-            server = smtplib.SMTP("smtp.gmail.com", 587)
-            server.starttls()
-            server.login(st.secrets["email_user"], st.secrets["email_password"])
-            server.sendmail(msg["From"], msg["To"], msg.as_string())
-            server.quit()
-
-            st.success("✅ Report sent successfully!")
-        except Exception as e:
-            st.error(f"Error sending email: {e}")
-
-# 🏠 Mortgage Tracker
+# --------------------
+# MORTGAGE TRACKER
+# --------------------
 if mortgage_file:
     st.subheader("🏠 Mortgage Tracker")
     mortgage_df = pd.read_csv(mortgage_file)
@@ -183,15 +111,62 @@ if mortgage_file:
         delinquency_counts = mortgage_df['Delinquent'].value_counts()
         values = [delinquency_counts.get(False, 0), delinquency_counts.get(True, 0)]
         labels = ["Current", "Delinquent"]
-        fig4, ax4 = plt.subplots()
-        ax4.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-        ax4.axis("equal")
-        st.pyplot(fig4)
+
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+        ax.axis("equal")
+        st.pyplot(fig)
 
         st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
         st.dataframe(mortgage_df)
 
-# Footer
+# --------------------
+# EMAIL REPORT SECTION
+# --------------------
+if show_board_email and uploaded_file:
+    st.markdown("### 📤 Send PDF Report")
+    if st.button("Send PDF Report"):
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, txt=f"Board Summary Report - {selected_client}", ln=True)
+
+            pdf.cell(200, 10, txt=f"Total Income: ${income:,.2f}", ln=True)
+            pdf.cell(200, 10, txt=f"Total Expenses: ${expenses:,.2f}", ln=True)
+            pdf.cell(200, 10, txt=f"Net Cash Flow: ${net:,.2f}", ln=True)
+            pdf.cell(200, 10, txt=f"Days Cash on Hand: {days_cash:.1f}", ln=True)
+            pdf.cell(200, 10, txt=f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            pdf.cell(200, 10, txt=f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
+
+            pdf_output = "/tmp/fundsight_report.pdf"
+            pdf.output(pdf_output.encode("utf-8"))
+
+            msg = MIMEMultipart()
+            msg["From"] = "you@example.com"
+            msg["To"] = "jacob.b.franco@gmail.com"
+            msg["Subject"] = f"Board Report for {selected_client}"
+            body = MIMEText("Attached is the latest board summary from FundSight.", "plain")
+            msg.attach(body)
+
+            with open(pdf_output, "rb") as f:
+                attachment = MIMEApplication(f.read(), _subtype="pdf")
+                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_report.pdf")
+                msg.attach(attachment)
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login("you@example.com", "yourpassword")
+                server.send_message(msg)
+
+            st.success("✅ PDF with logo, charts, and summary was generated and emailed!")
+
+        except Exception as e:
+            st.error(f"Error sending email: {e}")
+
+# --------------------
+# FOOTER
+# --------------------
 footer = """
 <style>
 .footer {
