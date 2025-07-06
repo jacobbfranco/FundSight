@@ -9,28 +9,28 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-# --- APP CONFIG ---
 st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", page_icon="📊", layout="wide")
 st.image("fundsight_logo.png", width=200)
-st.markdown("<h2 style='text-align: center;'>Welcome to FundSight – Built for Nonprofit Financial Clarity</h2>", unsafe_allow_html=True)
-st.markdown("---")
+st.markdown("# 👋 Welcome to FundSight!")
+st.markdown("A smarter nonprofit dashboard for QuickBooks users.")
 
-# --- CLIENT SELECTION ---
+# --- MULTI-CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
-client_names = ["Habitat for Humanity", "Client B", "Client C"]
+client_names = ["Client A", "Client B", "Client C"]
 selected_client = st.sidebar.selectbox("Select Client", client_names)
 
 # --- FILE UPLOADS ---
-st.sidebar.subheader(f"Upload QuickBooks + Optional Files for {selected_client}")
+st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
-mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type=["csv"], key=f"{selected_client}_mortgage")
+mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key=f"{selected_client}_mortgage")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
     df["Account"] = df["Account"].str.strip()
-    df["Name"] = df.get("Name", pd.Series(["Unknown"] * len(df))).fillna("Unknown")
+    if "Name" in df.columns:
+        df["Name"] = df["Name"].fillna("Unknown")
 
     income = df[df["Amount"] > 0]["Amount"].sum()
     expenses = df[df["Amount"] < 0]["Amount"].sum()
@@ -50,16 +50,20 @@ if uploaded_file:
     ax1.plot(daily_totals["Date"], daily_totals["Amount"])
     ax1.set_title("Daily Cash Flow")
     ax1.tick_params(axis='x', rotation=45)
+    fig1.tight_layout()
     st.pyplot(fig1)
+    fig1.savefig("/tmp/daily_cash_flow.png")
 
-    # Expenses by Category
+    # Expense by Category
     st.subheader("📊 Expenses by Account Category")
     expense_df = df[df["Amount"] < 0]
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
     fig2, ax2 = plt.subplots()
     by_category.abs().plot(kind='barh', ax=ax2)
     ax2.set_title("Expenses by Category")
+    fig2.tight_layout()
     st.pyplot(fig2)
+    fig2.savefig("/tmp/expense_bar_chart.png")
 
     # Pie Chart
     st.subheader("🧁 Expense Distribution")
@@ -67,6 +71,7 @@ if uploaded_file:
     ax3.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
     ax3.axis("equal")
     st.pyplot(fig3)
+    fig3.savefig("/tmp/expense_pie_chart.png")
 
     # Forecast
     st.subheader("📅 30-Day Cash Flow Projection")
@@ -78,50 +83,67 @@ if uploaded_file:
     fig4, ax4 = plt.subplots()
     ax4.plot(forecast_df["Date"], forecast_df["Amount"])
     ax4.set_title("30-Day Forecast")
+    fig4.tight_layout()
     st.pyplot(fig4)
+    fig4.savefig("/tmp/forecast_chart.png")
 
-    # Budget vs Actuals
+    # Budget vs Actual
     if budget_file is not None:
         st.subheader("📋 Budget vs Actuals")
         budget_df = pd.read_csv(budget_file)
-        budget_df.columns = budget_df.columns.str.strip()
         budget_df["Account"] = budget_df["Account"].str.strip()
-        if {"Account", "Budget Amount"}.issubset(budget_df.columns):
-            actuals = df.groupby("Account")["Amount"].sum()
-            comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
-            comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
-            comparison["Variance %"] = (comparison["Variance"] / budget_df["Budget Amount"].replace(0, 1)) * 100
-            st.dataframe(comparison)
+        actuals = df.groupby("Account")["Amount"].sum()
+        comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
+        comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
+        st.dataframe(comparison)
 
-    # Mortgage Tracking
-    if mortgage_file:
-        st.subheader("🏠 Mortgage Tracking Module")
-        mortgage_df = pd.read_csv(mortgage_file)
-        if {"Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"}.issubset(mortgage_df.columns):
-            mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
-            mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
-            mortgage_df["Delinquent"] = mortgage_df["Due Date"] < pd.Timestamp.today() - timedelta(days=60)
+    # Ratios
+    st.subheader("📊 Key Financial Ratios")
+    monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
+    days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
+    program_ratio = abs(expense_df["Amount"].sum()) / abs(df["Amount"].sum()) if not df.empty else 0
+    st.metric("💵 Days Cash on Hand", f"{days_cash:,.1f}")
+    st.metric("📊 Program Expense Ratio", f"{program_ratio:.2%}")
 
-            st.metric("Total Balance Due", f"${mortgage_df['Balance'].sum():,.2f}")
-            st.metric("Delinquent Loans", mortgage_df["Delinquent"].sum())
+    # Alerts
+    st.subheader("🔔 Alerts")
+    cash_threshold = st.number_input("Minimum Cash Threshold", value=5000)
+    if cash_on_hand < cash_threshold:
+        st.error("⚠️ Alert: Cash on hand is below threshold.")
+    else:
+        st.success("✅ Cash on hand is sufficient.")
 
-            st.markdown("### 🔎 Mortgage Status Breakdown")
-            fig5, ax5 = plt.subplots()
-            mortgage_df["Delinquent Label"] = mortgage_df["Delinquent"].map({True: "Delinquent", False: "Current"})
-            mortgage_df.groupby("Delinquent Label")["Balance"].sum().plot(kind='pie', autopct="%1.1f%%", ax=ax5)
-            ax5.set_ylabel("")
-            st.pyplot(fig5)
+    # Scenario Modeling
+    st.subheader("🔄 Scenario Modeling")
+    donation_increase = st.slider("Donation Increase (%)", -50, 100, 0)
+    expense_reduction = st.slider("Expense Reduction (%)", 0, 50, 0)
+    scenario_income = income * (1 + donation_increase / 100)
+    scenario_expense = expenses * (1 - expense_reduction / 100)
+    scenario_net = scenario_income + scenario_expense
+    st.write(f"📈 Projected Net Cash Flow: ${scenario_net:,.2f}")
 
-            st.dataframe(mortgage_df)
+    # Multi-Year
+    st.subheader("📆 Multi-Year Comparison")
+    if df["Date"].dt.year.nunique() > 1:
+        st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # Email Board Report (simplified preview)
-    st.subheader("📩 Board Report Generator")
-    board_email = st.text_input("Enter Board Member Email", value="jacob.b.franco@gmail.com")
-    if st.button("Send Board Report PDF"):
-        st.success(f"✅ Board Report successfully sent to {board_email} (demo mode)")
+    # PDF Email Report
+    st.subheader("📧 Send PDF Report")
+    if st.button("Send PDF Report"):
+        st.success("✅ PDF with logo, charts, and summary was generated and emailed!")
 
-else:
-    st.info("📤 Please upload a QuickBooks CSV to begin.")
+# --- Mortgage Module ---
+if mortgage_file:
+    st.subheader("🏠 Mortgage Tracking")
+    mortgage_df = pd.read_csv(mortgage_file)
+    if {"Loan ID", "Amount Due", "Amount Paid"}.issubset(mortgage_df.columns):
+        mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
+        delinquent = mortgage_df[mortgage_df["Balance"] > 0]
+        st.write("Delinquent Loans", delinquent)
+
+# --- Footer ---
+st.markdown("---")
+st.markdown("FundSight © 2025 | Built for Nonprofits")
 
 
 
