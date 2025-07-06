@@ -11,7 +11,7 @@ import os
 
 st.set_page_config(page_title="FundSight", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
-st.markdown("Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
+
 
 # --- MULTI-CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
