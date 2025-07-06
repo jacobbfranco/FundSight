@@ -9,9 +9,8 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide", page_icon="📊")
+st.set_page_config(page_title="FundSight", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
-st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
 st.markdown("Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
 
 # --- MULTI-CLIENT SELECTION ---
@@ -23,9 +22,9 @@ selected_client = st.sidebar.selectbox("Select Client", client_names)
 st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
+mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
 
 # Mortgage and Board Modules
-show_mortgage = st.sidebar.checkbox("🏠 Show Mortgage Tracker")
 show_board = st.sidebar.checkbox("📤 Enable Board Report Email")
 
 if uploaded_file:
@@ -46,7 +45,6 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # Scenario Modeling
     st.subheader("🔄 Scenario Modeling")
     donation_increase = st.slider("Donation Increase (%)", -50, 100, 0)
     expense_reduction = st.slider("Expense Reduction (%)", 0, 50, 0)
@@ -55,12 +53,10 @@ if uploaded_file:
     scenario_net = scenario_income + scenario_expense
     st.write(f"📈 Projected Net Cash Flow: ${scenario_net:,.2f}")
 
-    # Multi-Year Comparison
     st.subheader("📆 Multi-Year Comparison")
     if df["Date"].dt.year.nunique() > 1:
         st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # Financial Ratios
     st.subheader("📊 Key Financial Ratios")
     monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
     days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
@@ -68,7 +64,6 @@ if uploaded_file:
     st.metric("💵 Days Cash on Hand", f"{days_cash:,.1f}")
     st.metric("📊 Program Expense Ratio", f"{program_ratio:.2%}")
 
-    # Alerts
     st.subheader("🔔 Alerts")
     cash_threshold = st.number_input("Minimum Cash Threshold", value=5000)
     if cash_on_hand < cash_threshold:
@@ -77,34 +72,32 @@ if uploaded_file:
         st.success("✅ Cash on hand is sufficient.")
 
 # Mortgage Tracker
-if show_mortgage:
+if mortgage_file:
     st.subheader("🏠 Mortgage Tracker")
-    mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
-    if mortgage_file:
-        mortgage_df = pd.read_csv(mortgage_file)
-        if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
-            mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
-            mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
-            mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
-            mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
+    mortgage_df = pd.read_csv(mortgage_file)
+    if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
+        mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
+        mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
+        mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
+        mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
 
-            st.metric("Total Outstanding Balance", f"${mortgage_df['Balance'].sum():,.2f}")
-            st.metric("🚨 Delinquent Loans", mortgage_df['Delinquent'].sum())
+        st.metric("Total Outstanding Balance", f"${mortgage_df['Balance'].sum():,.2f}")
+        st.metric("🚨 Delinquent Loans", mortgage_df['Delinquent'].sum())
 
-            delinquency_counts = mortgage_df['Delinquent'].value_counts()
-            values = [delinquency_counts.get(False, 0), delinquency_counts.get(True, 0)]
-            labels = ["Current", "Delinquent"]
+        delinquency_counts = mortgage_df['Delinquent'].value_counts()
+        values = [delinquency_counts.get(False, 0), delinquency_counts.get(True, 0)]
+        labels = ["Current", "Delinquent"]
 
-            fig, ax = plt.subplots()
-            ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-            ax.axis("equal")
-            st.pyplot(fig)
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+        ax.axis("equal")
+        st.pyplot(fig)
 
-            st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
-            st.dataframe(mortgage_df)
+        st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
+        st.dataframe(mortgage_df)
 
-# Footer (Injected HTML style)
-footer = """
+# Footer
+footer = '''
 <style>
 .footer {
     position: fixed;
@@ -119,8 +112,9 @@ footer = """
 <div class="footer">
     FundSight © 2025 | Built for Nonprofits
 </div>
-"""
+'''
 st.markdown(footer, unsafe_allow_html=True)
+
 
 
 
