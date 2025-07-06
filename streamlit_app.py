@@ -9,13 +9,11 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide", page_icon="📊")
+st.set_page_config(page_title="FundSight", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
 st.markdown("## Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
-st.markdown("---")
 
-# --- CLIENT SELECTION ---
+# --- MULTI-CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
 client_names = ["Client A", "Client B", "Client C"]
 selected_client = st.sidebar.selectbox("Select Client", client_names)
@@ -25,11 +23,12 @@ st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
+board_email = st.sidebar.text_input("📤 Board Email Address")
 
-# --- TOGGLES ---
-show_board_report = st.sidebar.checkbox("📤 Enable Board Report Email")
+# Show toggles
+show_mortgage = st.sidebar.checkbox("🏠 Show Mortgage Tracker", value=True)
+show_board = st.sidebar.checkbox("📩 Enable Board Email Button", value=True)
 
-# --- MAIN DASHBOARD ---
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
@@ -78,93 +77,100 @@ if uploaded_file:
     else:
         st.success("✅ Cash on hand is sufficient.")
 
+    # Budget vs Actuals
+    if budget_file:
+        st.subheader("📋 Budget vs Actuals")
+        budget_df = pd.read_csv(budget_file)
+        if "Actual" not in budget_df.columns:
+            budget_df["Actual"] = 0
+        budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
+        st.dataframe(budget_df)
+
 # --- MORTGAGE TRACKER ---
-if mortgage_file:
-    st.subheader("🏠 Mortgage Tracker")
+if show_mortgage and mortgage_file:
+    st.subheader("🏠 Mortgage Tracking")
     mortgage_df = pd.read_csv(mortgage_file)
-    required_cols = ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]
-    if all(col in mortgage_df.columns for col in required_cols):
+    if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
         mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
         mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
         mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
         mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
 
         st.metric("Total Outstanding Balance", f"${mortgage_df['Balance'].sum():,.2f}")
-        st.metric("🚨 Delinquent Loans", mortgage_df["Delinquent"].sum())
+        st.metric("🚨 Delinquent Loans", mortgage_df['Delinquent'].sum())
 
-        values = mortgage_df["Delinquent"].value_counts().reindex([False, True], fill_value=0).tolist()
+        delinquency_counts = mortgage_df['Delinquent'].value_counts()
+        values = [delinquency_counts.get(False, 0), delinquency_counts.get(True, 0)]
         labels = ["Current", "Delinquent"]
 
-        fig1, ax1 = plt.subplots()
-        ax1.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-        ax1.axis("equal")
-        st.pyplot(fig1)
+        fig, ax = plt.subplots()
+        ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
+        ax.axis("equal")
+        st.pyplot(fig)
 
         st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
         st.dataframe(mortgage_df)
 
-# --- BOARD REPORT MODULE ---
-if show_board_report:
-    st.subheader("📤 Email Board Report")
-
+# --- BOARD REPORT PDF ---
+if show_board and uploaded_file:
+    st.subheader("📄 Board Report")
     if st.button("Send Board PDF Report"):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.image("fundsight_logo.png", x=10, w=50)
-            pdf.ln(20)
-            pdf.multi_cell(0, 10, f"""
-Board Summary Report – {selected_client}
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.cell(200, 10, txt=f"Board Summary Report - {selected_client}", ln=True)
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Total Income: ${income:,.2f}", ln=True)
+        pdf.cell(200, 10, txt=f"Total Expenses: ${expenses:,.2f}", ln=True)
+        pdf.cell(200, 10, txt=f"Net Cash Flow: ${net:,.2f}", ln=True)
+        pdf.cell(200, 10, txt=f"Days Cash on Hand: {days_cash:.1f}", ln=True)
+        pdf.cell(200, 10, txt=f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+        pdf.cell(200, 10, txt=f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
 
-Total Income: ${income:,.2f}
-Total Expenses: ${expenses:,.2f}
-Net Cash Flow: ${net:,.2f}
-Days Cash on Hand: {days_cash:.1f}
-Program Expense Ratio: {program_ratio:.2%}
-Scenario Net Cash Flow: ${scenario_net:,.2f}
-""")
-            pdf_output_path = "/tmp/board_report.pdf"
-            pdf.output(pdf_output_path)
+        pdf_output = "/mnt/data/final_fundsight_report.pdf"
+        pdf.output(pdf_output)
 
-            msg = MIMEMultipart()
-            msg["From"] = st.secrets["email_user"]
-            msg["To"] = "jacob.b.franco@gmail.com"  # or input box
-            msg["Subject"] = f"FundSight Board Report – {selected_client}"
-            msg.attach(MIMEText("Attached is the board-ready report from FundSight.", "plain"))
+        if board_email:
+            try:
+                msg = MIMEMultipart()
+                msg["From"] = os.environ.get("EMAIL_FROM")
+                msg["To"] = board_email
+                msg["Subject"] = f"Board Report for {selected_client}"
+                body = "Attached is the board summary report from FundSight."
+                msg.attach(MIMEText(body, "plain", "utf-8"))
 
-            with open(pdf_output_path, "rb") as f:
-                attach = MIMEApplication(f.read(), _subtype="pdf")
-                attach.add_header("Content-Disposition", "attachment", filename="board_report.pdf")
-                msg.attach(attach)
+                with open(pdf_output, "rb") as f:
+                    part = MIMEApplication(f.read(), _subtype="pdf")
+                    part.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+                    msg.attach(part)
 
-            server = smtplib.SMTP("smtp.gmail.com", 587)
-            server.starttls()
-            server.login(st.secrets["email_user"], st.secrets["email_password"])
-            server.sendmail(msg["From"], msg["To"], msg.as_string())
-            server.quit()
+                server = smtplib.SMTP("smtp.gmail.com", 587)
+                server.starttls()
+                server.login(os.environ.get("EMAIL_FROM"), os.environ.get("EMAIL_PASSWORD"))
+                server.sendmail(msg["From"], msg["To"], msg.as_string())
+                server.quit()
 
-            st.success("📧 Report sent successfully to Board email.")
-        except Exception as e:
-            st.error(f"Error sending email: {e}")
+                st.success("✅ PDF with logo, charts, and summary was generated and emailed!")
+            except Exception as e:
+                st.error(f"Error sending email: {e}")
 
-# --- FOOTER ---
+# Footer
 st.markdown("""
-<style>
-.footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background: #f1f1f1;
-    color: #555;
-    text-align: center;
-    padding: 10px;
-}
-</style>
-<div class="footer">
-    FundSight © 2025 | Built for Nonprofits
-</div>
-""", unsafe_allow_html=True)
+    <style>
+    .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        background: #f1f1f1;
+        color: #555;
+        text-align: center;
+        padding: 10px;
+    }
+    </style>
+    <div class="footer">
+        FundSight © 2025 | Built for Nonprofits
+    </div>
+    """, unsafe_allow_html=True)
 
 
 
