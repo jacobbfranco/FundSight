@@ -9,12 +9,16 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", layout="wide")
-st.title("📊 FundSight: QuickBooks Dashboard for Nonprofits")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="FundSight: Nonprofit Finance Dashboard", page_icon="📊", layout="wide")
 
-# --- MULTI-CLIENT SELECTION ---
+# --- LOGO & WELCOME BANNER ---
+st.image("fundsight_logo.png", width=200)
+st.markdown("## 👋 Welcome to FundSight – Built for Nonprofit Finance Teams")
+
+# --- CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
-client_names = ["Habitat for Humanity"]
+client_names = ["Client A", "Client B", "Client C"]
 selected_client = st.sidebar.selectbox("Select Client", client_names)
 
 # --- FILE UPLOADS ---
@@ -23,17 +27,12 @@ uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], 
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key=f"{selected_client}_mortgage")
 
-# Optional Modules
-st.sidebar.markdown("### Optional Modules")
-show_mortgage = st.sidebar.checkbox("📋 Include Mortgage Tracking")
-show_board_report = st.sidebar.checkbox("📩 Include Board Report Generator")
-
+# --- MAIN DASHBOARD ---
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
     df["Account"] = df["Account"].str.strip()
-    if "Name" in df.columns:
-        df["Name"] = df["Name"].fillna("Unknown")
+    df["Name"] = df.get("Name", "Unknown")
 
     income = df[df["Amount"] > 0]["Amount"].sum()
     expenses = df[df["Amount"] < 0]["Amount"].sum()
@@ -46,14 +45,11 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # Daily Cash Flow
+    # Daily Cash Flow Trend
     st.subheader("📈 Daily Cash Flow Trend")
     daily_totals = df.groupby("Date")["Amount"].sum().reset_index()
     fig1, ax1 = plt.subplots()
     ax1.plot(daily_totals["Date"], daily_totals["Amount"])
-    ax1.set_title("Daily Cash Flow")
-    ax1.tick_params(axis='x', rotation=45)
-    fig1.tight_layout()
     st.pyplot(fig1)
 
     # Expenses by Category
@@ -62,84 +58,70 @@ if uploaded_file:
     by_category = expense_df.groupby("Account")["Amount"].sum().sort_values()
     fig2, ax2 = plt.subplots()
     by_category.abs().plot(kind='barh', ax=ax2)
-    ax2.set_title("Expenses by Category")
-    fig2.tight_layout()
     st.pyplot(fig2)
-
-    # Pie Chart
-    st.subheader("🧁 Expense Distribution")
-    fig3, ax3 = plt.subplots()
-    ax3.pie(by_category.abs(), labels=by_category.index, autopct="%1.1f%%", startangle=90)
-    ax3.axis("equal")
-    st.pyplot(fig3)
-
-    # 30-Day Forecast
-    st.subheader("📅 30-Day Cash Flow Projection")
-    daily_avg = daily_totals["Amount"].mean()
-    forecast_df = pd.DataFrame({
-        "Date": pd.date_range(daily_totals["Date"].max() + timedelta(days=1), periods=30),
-        "Amount": daily_avg
-    })
-    fig4, ax4 = plt.subplots()
-    ax4.plot(forecast_df["Date"], forecast_df["Amount"])
-    ax4.set_title("30-Day Forecast")
-    fig4.tight_layout()
-    st.pyplot(fig4)
 
     # Budget vs Actuals
     if budget_file is not None:
         st.subheader("📋 Budget vs Actuals")
         budget_df = pd.read_csv(budget_file)
-        budget_df.columns = budget_df.columns.str.strip()
-        budget_df["Account"] = budget_df["Account"].str.strip()
-        if {"Account", "Budget Amount"}.issubset(budget_df.columns):
-            actuals = df.groupby("Account")["Amount"].sum()
-            comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
-            comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
-            comparison["Variance %"] = (comparison["Variance"] / budget_df["Budget Amount"].replace(0, 1)) * 100
-            st.dataframe(comparison)
+        actuals = df.groupby("Account")["Amount"].sum()
+        comparison = pd.merge(budget_df, actuals.rename("Actual"), on="Account", how="outer").fillna(0)
+        comparison["Variance"] = comparison["Actual"] - comparison["Budget Amount"]
+        st.dataframe(comparison)
 
-    # --- Mortgage Tracking Module ---
-    if show_mortgage and mortgage_file:
-        st.subheader("🏠 Mortgage Tracking Module")
-        st.markdown("Upload your mortgage CSV file (Borrower, Loan ID, Amount Due, Amount Paid, Due Date)")
+    # Mortgage Module
+    if mortgage_file is not None:
+        st.subheader("🏠 Mortgage Tracker")
         mortgage_df = pd.read_csv(mortgage_file)
-        st.dataframe(mortgage_df.head())
-
-        if {"Amount Due", "Amount Paid"}.issubset(mortgage_df.columns):
+        if "Amount Due" in mortgage_df.columns and "Amount Paid" in mortgage_df.columns:
             mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
-            st.line_chart(mortgage_df.set_index("Loan ID")["Balance"])
+            mortgage_df["Delinquent"] = mortgage_df["Balance"] > 0
+            delinquent_count = mortgage_df["Delinquent"].sum()
+            st.metric("🚨 Delinquent Loans", int(delinquent_count))
+            st.dataframe(mortgage_df)
 
-        if "Delinquent" in mortgage_df.columns:
-            st.metric("🚨 Delinquent Loans", int(mortgage_df["Delinquent"].sum()))
+    # PDF Report + Email to Board
+    st.subheader("📤 Send Board Report")
+    board_email = st.text_input("Board Email Address", "jacob.b.franco@gmail.com")
+    if st.button("Send Monthly Board Report"):
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.cell(200, 10, f"FundSight Board Report – {selected_client}", ln=True)
+            pdf.ln(10)
+            summary = (
+                f"Total Income: ${income:,.2f}\n"
+                f"Total Expenses: ${expenses:,.2f}\n"
+                f"Net Cash Flow: ${net:,.2f}\n"
+                f"Cash on Hand: ${cash_on_hand:,.2f}"
+            )
+            for line in summary.split("\n"):
+                pdf.multi_cell(0, 10, line)
+            pdf_path = "/tmp/fundsight_board_report.pdf"
+            pdf.output(pdf_path)
 
-    # --- Board Report Module ---
-    if show_board_report:
-        st.subheader("📋 Board Reports")
-        board_email = st.text_input("📧 Board Email Address", "jacob.b.franco@gmail.com")
-        if st.button("Send Monthly Board Report"):
-            try:
-                msg = MIMEMultipart()
-                msg["From"] = st.secrets["email_user"]
-                msg["To"] = board_email
-                msg["Subject"] = f"Monthly Board Report – {selected_client}"
-                summary = f'''
-Dear Board Member,
+            msg = MIMEMultipart()
+            msg["From"] = st.secrets["email_user"]
+            msg["To"] = board_email
+            msg["Subject"] = f"Board Report – {selected_client}"
+            body = f"Attached is this month's board report for {selected_client}.\n\n-FundSight"
+            msg.attach(MIMEText(body, "plain"))
+            with open(pdf_path, "rb") as f:
+                msg.attach(MIMEApplication(f.read(), _subtype="pdf", name="Board_Report.pdf"))
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(st.secrets["email_user"], st.secrets["email_password"])
+            server.sendmail(msg["From"], msg["To"], msg.as_string())
+            server.quit()
+            st.success("✅ Board Report sent successfully!")
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+else:
+    st.info("📤 Please upload a QuickBooks CSV file to begin.")
 
-Attached is this month's FundSight financial overview for {selected_client}.
-
-• Total Income: ${income:,.2f}
-• Total Expenses: ${expenses:,.2f}
-• Net Cash Flow: ${net:,.2f}
-• Days Cash on Hand: {(cash_on_hand / (abs(expenses) / 30)) if expenses else 0:.1f}
-
-Warm regards,
-FundSight Board Reporting Tool
-'''
-                msg.attach(MIMEText(summary, "plain"))
-                st.success("✅ Board Report sent successfully! (mocked)")
-
-            except Exception as e:
-                st.error(f"❌ Error sending board report: {e}")
+# Footer
+st.markdown("---")
+st.markdown("FundSight © 2025 | Built for Nonprofits")
 
 
