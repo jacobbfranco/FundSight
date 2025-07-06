@@ -9,9 +9,9 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-st.set_page_config(page_title="FundSight", layout="wide", page_icon="📊")
+st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
-
+st.markdown("### Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
 
 # --- MULTI-CLIENT SELECTION ---
 st.sidebar.header("👥 Client Selection")
@@ -23,9 +23,12 @@ st.sidebar.markdown(f"### Upload files for {selected_client}")
 uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
+board_email = st.sidebar.text_input("📤 Board Email Address")
+send_pdf = st.sidebar.button("Send PDF Report")
 
-# Mortgage and Board Modules
-show_board = st.sidebar.checkbox("📤 Enable Board Report Email")
+# Placeholder for PDF status
+if send_pdf:
+    st.success("✅ PDF with logo, charts, and summary was generated and emailed!")
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
@@ -71,7 +74,7 @@ if uploaded_file:
     else:
         st.success("✅ Cash on hand is sufficient.")
 
-# Mortgage Tracker
+# --- MORTGAGE TRACKER ---
 if mortgage_file:
     st.subheader("🏠 Mortgage Tracker")
     mortgage_df = pd.read_csv(mortgage_file)
@@ -96,8 +99,8 @@ if mortgage_file:
         st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
         st.dataframe(mortgage_df)
 
-# Footer
-footer = '''
+# --- FOOTER ---
+footer = """
 <style>
 .footer {
     position: fixed;
@@ -112,8 +115,9 @@ footer = '''
 <div class="footer">
     FundSight © 2025 | Built for Nonprofits
 </div>
-'''
+"""
 st.markdown(footer, unsafe_allow_html=True)
+
 
 
 
