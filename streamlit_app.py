@@ -141,18 +141,18 @@ if show_email_button and uploaded_file:
             # Board Financial Summary
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "📊 Board Financial Summary", ln=True)
+            pdf.cell(0, 10, "Board Financial Summary", ln=True)
             pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"🟢 Total Income:           ${income:,.2f}", ln=True)
-            pdf.cell(0, 10, f"🔴 Total Expenses:         ${expenses:,.2f}", ln=True)
-            pdf.cell(0, 10, f"💰 Net Cash Flow:          ${net:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Income:           ${income:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Expenses:         ${expenses:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Net Cash Flow:          ${net:,.2f}", ln=True)
 
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
             # Scenario Modeling
             pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "🔄 Scenario Modeling", ln=True)
+            pdf.cell(0, 10, "Scenario Modeling", ln=True)
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
             pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
@@ -162,10 +162,10 @@ if show_email_button and uploaded_file:
 
             # Financial Ratios
             pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "📊 Financial Ratios", ln=True)
+            pdf.cell(0, 10, "Financial Ratios", ln=True)
             pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"💵 Days Cash on Hand: {days_cash:,.1f}", ln=True)
-            pdf.cell(0, 10, f"📈 Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
+            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
 
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
@@ -173,7 +173,7 @@ if show_email_button and uploaded_file:
             # Mortgage Summary (if available)
             if mortgage_summary:
                 pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "🏠 Mortgage Summary", ln=True)
+                pdf.cell(0, 10, "Mortgage Summary", ln=True)
                 pdf.set_font("Arial", "", 12)
                 for line in mortgage_summary.strip().split("\n"):
                     pdf.cell(0, 10, line, ln=True)
