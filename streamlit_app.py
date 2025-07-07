@@ -138,9 +138,9 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
 
             if mortgage_summary:
-                pdf.multi_cell(0, 10, f"\n🏠 Mortgage Summary:\n{mortgage_summary}")
+                pdf.multi_cell(0, 10, f"\nMortgage Summary:\n{mortgage_summary}")
 
-            pdf.multi_cell(0, 10, "\n📝 Board Notes:\n - Prepared by FundSight Dashboard\n - Data sourced from latest QuickBooks and mortgage files.")
+            pdf.multi_cell(0, 10, "\nBoard Notes:\n - Prepared by FundSight Dashboard\n - Data sourced from latest QuickBooks and mortgage files.")
 
             if include_signature:
                 pdf.multi_cell(0, 10, "\n_____________________\nBoard Member Signature")
