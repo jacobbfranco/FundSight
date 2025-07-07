@@ -126,34 +126,83 @@ if show_email_button and uploaded_file:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.image("fundsight_logo.png", x=10, y=8, w=33)
-            pdf.set_xy(10, 40)
-            pdf.multi_cell(0, 10, f"Board Summary Report - {selected_client}\n")
 
-            pdf.cell(0, 10, f"Total Income: ${income:,.2f}", ln=True)
-            pdf.cell(0, 10, f"Total Expenses: ${expenses:,.2f}", ln=True)
-            pdf.cell(0, 10, f"Net Cash Flow: ${net:,.2f}", ln=True)
-            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:.1f}", ln=True)
-            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
-            pdf.cell(0, 10, f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
+            # Logo
+            if os.path.exists("fundsight_logo.png"):
+                pdf.image("fundsight_logo.png", x=10, y=8, w=33)
 
+            # Header Info
+            pdf.set_xy(10, 10)
+            pdf.set_font("Arial", style="B", size=12)
+            pdf.cell(0, 10, f"{pd.Timestamp.today():%B %d, %Y}", ln=True, align="R")
+            pdf.set_font("Arial", style="", size=12)
+            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+
+            # Board Financial Summary
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "📊 Board Financial Summary", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"🟢 Total Income:           ${income:,.2f}", ln=True)
+            pdf.cell(0, 10, f"🔴 Total Expenses:         ${expenses:,.2f}", ln=True)
+            pdf.cell(0, 10, f"💰 Net Cash Flow:          ${net:,.2f}", ln=True)
+
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+
+            # Scenario Modeling
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "🔄 Scenario Modeling", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
+            pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
+
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+
+            # Financial Ratios
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "📊 Financial Ratios", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"💵 Days Cash on Hand: {days_cash:,.1f}", ln=True)
+            pdf.cell(0, 10, f"📈 Program Expense Ratio: {program_ratio:.2%}", ln=True)
+
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(5)
+
+            # Mortgage Summary (if available)
             if mortgage_summary:
-                pdf.multi_cell(0, 10, f"\nMortgage Summary:\n{mortgage_summary}")
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "🏠 Mortgage Summary", ln=True)
+                pdf.set_font("Arial", "", 12)
+                for line in mortgage_summary.strip().split("\n"):
+                    pdf.cell(0, 10, line, ln=True)
+                pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+                pdf.ln(5)
 
-            pdf.multi_cell(0, 10, "\nBoard Notes:\n - Prepared by FundSight Dashboard\n - Data sourced from latest QuickBooks and mortgage files.")
+            # Board Notes and Footer
+            pdf.set_font("Arial", "I", 11)
+            pdf.multi_cell(0, 10, "Prepared by FundSight Dashboard\nData sourced from QuickBooks and mortgage uploads.\n")
 
             if include_signature:
-                pdf.multi_cell(0, 10, "\n_____________________\nBoard Member Signature")
+                pdf.ln(10)
+                pdf.set_font("Arial", "", 12)
+                pdf.multi_cell(0, 10, "_____________________\nBoard Member Signature")
 
+            pdf.set_y(-20)
+            pdf.set_font("Arial", "I", 10)
+            pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
+
+            # Output and email
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
-            # Send email
+            # Email logic
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email_user"]
             msg["To"] = st.secrets["email_user"]
             msg["Subject"] = f"Board Report for {selected_client}"
-            body = MIMEText("Attached is the board summary from FundSight.", "plain")
+            body = MIMEText("Attached is your FundSight Board Summary Report.", "plain")
             msg.attach(body)
 
             with open(pdf_output, "rb") as f:
