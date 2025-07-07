@@ -197,23 +197,23 @@ if show_email_button and uploaded_file:
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
-            # Email logic
-            msg = MIMEMultipart()
-            msg["From"] = st.secrets["email_user"]
-            msg["To"] = st.secrets["email_user"]
-            msg["Subject"] = f"Board Report for {selected_client}"
-            body = MIMEText("Attached is your FundSight Board Summary Report.", "plain")
-            msg.attach(body)
+         # Email logic
+msg = MIMEMultipart()
+msg["From"] = st.secrets["email"]["email_user"]
+msg["To"] = st.secrets["email"]["email_user"]
+msg["Subject"] = f"Board Report for {selected_client}"
+body = MIMEText("Attached is your FundSight Board Summary Report.", "plain")
+msg.attach(body)
 
-            with open(pdf_output, "rb") as f:
-                attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                msg.attach(attachment)
+with open(pdf_output, "rb") as f:
+    attachment = MIMEApplication(f.read(), _subtype="pdf")
+    attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+    msg.attach(attachment)
 
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(st.secrets["email_user"], st.secrets["email_password"])
-                server.send_message(msg)
+with smtplib.SMTP("smtp.gmail.com", 587) as server:
+    server.starttls()
+    server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
+    server.send_message(msg)
 
             st.success("✅ Board PDF sent successfully!")
 
