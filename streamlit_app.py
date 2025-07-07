@@ -9,31 +9,24 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-# --------------------
-# SETUP & TITLE
-# --------------------
+# App setup
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
 st.markdown("### Welcome to FundSight – your all-in-one dashboard for nonprofit financial health.")
 
-# --------------------
-# CLIENT & FILE UPLOADS
-# --------------------
+# Sidebar
 st.sidebar.header("👥 Client Selection")
-client_names = ["Client A", "Client B", "Client C"]
-selected_client = st.sidebar.selectbox("Select Client", client_names)
+clients = ["Client A", "Client B", "Client C"]
+selected_client = st.sidebar.selectbox("Select Client", clients)
 
-st.sidebar.markdown(f"### Upload files for {selected_client}")
-uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"], key=f"{selected_client}_qb")
-budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"], key=f"{selected_client}_budget")
-mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV", type=["csv"], key="mortgage_csv")
+uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type="csv")
+budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type="csv")
+mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type="csv")
 
-# Show Email Button
-show_board_email = st.sidebar.checkbox("📤 Enable Board Report Email")
+include_signature = st.sidebar.checkbox("🖋 Include Signature Section")
+show_email_button = st.sidebar.checkbox("📤 Enable Email to Board")
 
-# --------------------
-# MAIN DASHBOARD
-# --------------------
+# Load and process QuickBooks data
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
@@ -90,13 +83,13 @@ if uploaded_file:
             actuals = df.groupby("Account")["Amount"].sum().reset_index()
             actuals.rename(columns={"Amount": "Actual"}, inplace=True)
             budget_df = pd.merge(budget_df, actuals, on="Account", how="left")
-        if "Budget Amount" in budget_df.columns and "Actual" in budget_df.columns:
-            budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
+        budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
         st.dataframe(budget_df)
 
 # --------------------
-# MORTGAGE TRACKER
+# Mortgage Tracker
 # --------------------
+mortgage_summary = ""
 if mortgage_file:
     st.subheader("🏠 Mortgage Tracker")
     mortgage_df = pd.read_csv(mortgage_file)
@@ -121,66 +114,59 @@ if mortgage_file:
         st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
         st.dataframe(mortgage_df)
 
+        mortgage_summary = f"\nDelinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: ${mortgage_df['Balance'].sum():,.2f}"
+
 # --------------------
-# EMAIL REPORT SECTION
+# PDF & Email Section
 # --------------------
-if uploaded_file and show_board_email:
+if show_email_button and uploaded_file:
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.cell(200, 10, txt=f"Board Summary Report - {selected_client}", ln=True)
-            pdf.cell(200, 10, txt=f"Total Income: ${income:,.2f}", ln=True)
-            pdf.cell(200, 10, txt=f"Total Expenses: ${expenses:,.2f}", ln=True)
-            pdf.cell(200, 10, txt=f"Net Cash Flow: ${net:,.2f}", ln=True)
-            pdf.cell(200, 10, txt=f"Days Cash on Hand: {days_cash:.1f}", ln=True)
-            pdf.cell(200, 10, txt=f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
-            pdf.cell(200, 10, txt=f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
+            pdf.image("fundsight_logo.png", x=10, y=8, w=33)
+            pdf.set_xy(10, 40)
+            pdf.multi_cell(0, 10, f"Board Summary Report – {selected_client}\n")
 
-            pdf_output = "/tmp/fundsight_report.pdf"
-            pdf.output(pdf_output.encode("latin-1"))
+            pdf.cell(0, 10, f"Total Income: ${income:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Expenses: ${expenses:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Net Cash Flow: ${net:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:.1f}", ln=True)
+            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            pdf.cell(0, 10, f"Scenario Net Cash Flow: ${scenario_net:,.2f}", ln=True)
 
+            if mortgage_summary:
+                pdf.multi_cell(0, 10, f"\n🏠 Mortgage Summary:\n{mortgage_summary}")
+
+            pdf.multi_cell(0, 10, "\n📝 Board Notes:\n - Prepared by FundSight Dashboard\n - Data sourced from latest QuickBooks and mortgage files.")
+
+            if include_signature:
+                pdf.multi_cell(0, 10, "\n_____________________\nBoard Member Signature")
+
+            pdf_output = "/tmp/fundsight_board_report.pdf"
+            pdf.output(pdf_output)
+
+            # Send email
             msg = MIMEMultipart()
-            msg["From"] = "jacob.b.franco@gmail.com"
-            msg["To"] = "jacob.b.franco@gmail.com"
+            msg["From"] = st.secrets["email_user"]
+            msg["To"] = st.secrets["email_user"]
             msg["Subject"] = f"Board Report for {selected_client}"
-            body = MIMEText("Attached is the latest board summary from FundSight.", "plain")
+            body = MIMEText("Attached is the board summary from FundSight.", "plain")
             msg.attach(body)
 
             with open(pdf_output, "rb") as f:
                 attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_report.pdf")
+                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
                 msg.attach(attachment)
 
             with smtplib.SMTP("smtp.gmail.com", 587) as server:
                 server.starttls()
-                server.login("jacob.b.franco@gmail.com", "cote lzmi cwpt knkw")
+                server.login(st.secrets["email_user"], st.secrets["email_password"])
                 server.send_message(msg)
 
-            st.success("✅ PDF with logo, charts, and summary was generated and emailed!")
+            st.success("✅ Board PDF sent successfully!")
 
         except Exception as e:
-            st.error(f"Error sending email: {e}")
-
-# --------------------
-# FOOTER
-# --------------------
-footer = """
-<style>
-.footer {
-    position: fixed;
-    bottom: 0;
-    width: 100%;
-    background: #f1f1f1;
-    color: #555;
-    text-align: center;
-    padding: 10px;
-}
-</style>
-<div class="footer">
-    FundSight © 2025 | Built for Nonprofits
-</div>
-"""
-st.markdown(footer, unsafe_allow_html=True)
+            st.error(f"Error sending PDF: {e}")
