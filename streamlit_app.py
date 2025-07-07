@@ -128,7 +128,7 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", size=12)
             pdf.image("fundsight_logo.png", x=10, y=8, w=33)
             pdf.set_xy(10, 40)
-            pdf.multi_cell(0, 10, f"Board Summary Report – {selected_client}\n")
+            pdf.multi_cell(0, 10, f"Board Summary Report - {selected_client}\n")
 
             pdf.cell(0, 10, f"Total Income: ${income:,.2f}", ln=True)
             pdf.cell(0, 10, f"Total Expenses: ${expenses:,.2f}", ln=True)
