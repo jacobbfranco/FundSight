@@ -129,24 +129,26 @@ if show_email_button and uploaded_file:
 
             # Logo
             if os.path.exists("fundsight_logo.png"):
-                pdf.image("fundsight_logo.png", x=10, y=8, w=33)
+                pdf.image("fundsight_logo.png", x=10, y=10, w=40)
 
-            # Header Info
-            pdf.set_xy(10, 10)
-            pdf.set_font("Arial", style="B", size=12)
+            # Header Info next to logo
+            pdf.set_xy(60, 10)
+            pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, f"{pd.Timestamp.today():%B %d, %Y}", ln=True, align="R")
-            pdf.set_font("Arial", style="", size=12)
+            pdf.set_xy(60, 20)
+            pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
 
+            # Add spacing before content
+            pdf.ln(25)
+
             # Board Financial Summary
-            pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Board Financial Summary", ln=True)
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Total Income:           ${income:,.2f}", ln=True)
             pdf.cell(0, 10, f"Total Expenses:         ${expenses:,.2f}", ln=True)
             pdf.cell(0, 10, f"Net Cash Flow:          ${net:,.2f}", ln=True)
-
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
@@ -156,7 +158,6 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
             pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
-
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
@@ -166,7 +167,6 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
             pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
-
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
@@ -180,7 +180,7 @@ if show_email_button and uploaded_file:
                 pdf.line(10, pdf.get_y(), 200, pdf.get_y())
                 pdf.ln(5)
 
-            # Board Notes and Footer
+            # Footer and Notes
             pdf.set_font("Arial", "I", 11)
             pdf.multi_cell(0, 10, "Prepared by FundSight Dashboard\nData sourced from QuickBooks and mortgage uploads.\n")
 
@@ -197,7 +197,7 @@ if show_email_button and uploaded_file:
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
-            # Email logic (using nested secrets)
+            # Email logic
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
             msg["To"] = st.secrets["email"]["email_user"]
