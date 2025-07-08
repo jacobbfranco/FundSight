@@ -106,95 +106,59 @@ if uploaded_file:
     health_color = "🟢" if health_score >= 0.8 else "🟡" if health_score >= 0.5 else "🔴"
     st.metric(f"{health_color} Health Score", f"{health_score:.2f}")
 
-# --- Alerts ---
-st.subheader("🔔 Alerts")
+    # --- Alerts ---
+    st.subheader("🔔 Alerts")
+    threshold = st.number_input("Minimum Cash Threshold", value=5000, key="cash_threshold")
+    if cash_on_hand < threshold:
+        st.error("⚠️ Alert: Cash on hand is below minimum threshold.")
+    else:
+        st.success("✅ Cash on hand is sufficient.")
 
-# Cash Threshold Alert
-threshold = st.number_input("Minimum Cash Threshold", value=5000)
-if cash_on_hand < threshold:
-    st.error("⚠️ Alert: Cash on hand is below minimum threshold.")
-else:
-    st.success("✅ Cash on hand is sufficient.")
+    expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000, key="expense_limit")
+    if abs(expenses) > expense_limit:
+        st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
+    else:
+        st.success("✅ Expenses are within acceptable range.")
 
-# Total Expenses Threshold
-expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000)
-if abs(expenses) > expense_limit:
-    st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
-else:
-    st.success("✅ Expenses are within acceptable range.")
+    min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75, key="program_ratio_min")
+    if program_ratio < min_program_ratio:
+        st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
+    else:
+        st.success("✅ Program Ratio meets the target.")
 
-# Program Ratio Alert
-min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75)
-if program_ratio < min_program_ratio:
-    st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
-else:
-    st.success("✅ Program Ratio meets the target.")
+# --- Grant Intelligence Module ---
+st.subheader("🎓 Grant Intelligence Module")
 
-# Total Expenses Threshold
-expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000)
-if abs(expenses) > expense_limit:
-    st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
-else:
-    st.success("✅ Expenses are within acceptable range.")
+grant_summary = ""
+if uploaded_file is not None:
+    # Filter transactions that appear to be grants
+    grant_keywords = ["grant", "foundation", "fund", "award"]
+    grant_df = df[df["Account"].str.contains("|".join(grant_keywords), case=False, na=False)]
 
-# Program Ratio Alert
-min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75)
-if program_ratio < min_program_ratio:
-    st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
-else:
-    st.success("✅ Program Ratio meets the target.")
+    if not grant_df.empty:
+        # Group by payor if available (use 'Name' or fallback to Account)
+        source_col = "Name" if "Name" in grant_df.columns else "Account"
+        grant_by_source = grant_df.groupby(source_col)["Amount"].sum().sort_values(ascending=False)
 
+        total_grants = grant_df["Amount"].sum()
+        top_source = grant_by_source.idxmax()
+        top_amount = grant_by_source.max()
 
+        st.metric("🎁 Total Grant Income", format_currency(total_grants))
+        st.metric("🏆 Top Grant Source", f"{top_source} ({format_currency(top_amount)})")
 
+        st.bar_chart(grant_by_source)
 
+        fig, ax = plt.subplots()
+        ax.pie(grant_by_source, labels=grant_by_source.index, autopct="%1.1f%%", startangle=90)
+        ax.axis("equal")
+        st.pyplot(fig)
 
+        st.dataframe(grant_df)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
-    
+        grant_summary = f"Total Grants: {format_currency(total_grants)}\nTop Source: {top_source} - {format_currency(top_amount)}"
+    else:
+        st.info("No grant-related transactions detected in this dataset.")
 
     # --- Budget vs Actuals ---
     if budget_file is not None:
