@@ -9,6 +9,13 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
+# 👉 Add this helper function here:
+def format_currency(value):
+    if value < 0:
+        return f"(${abs(value):,.2f})"
+    else:
+        return f"${value:,.2f}"
+
 # --- App Setup ---
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
