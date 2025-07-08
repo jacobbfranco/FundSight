@@ -58,14 +58,35 @@ if uploaded_file:
     col3.metric("💰 Net Cash Flow", f"${net:,.2f}")
     st.markdown("---")
 
-    # --- Scenario Modeling ---
-    st.subheader("🔄 Scenario Modeling")
-    donation_increase = st.slider("Donation Increase (%)", -50, 100, 0)
-    expense_reduction = st.slider("Expense Reduction (%)", 0, 50, 0)
-    scenario_income = income * (1 + donation_increase / 100)
-    scenario_expense = expenses * (1 - expense_reduction / 100)
-    scenario_net = scenario_income + scenario_expense
-    st.write(f"📈 Projected Net Cash Flow: ${scenario_net:,.2f}")
+ # --- Scenario Modeling (v2) ---
+st.subheader("🔄 Scenario Modeling")
+
+donation_increase = st.slider("📈 Donation Increase (%)", -50, 100, 0)
+grant_change = st.slider("🏛️ Grant Revenue Change (%)", -50, 100, 0)
+personnel_change = st.slider("👥 Personnel Expense Change (%)", -50, 50, 0)
+program_change = st.slider("🧱 Program Expense Change (%)", -50, 50, 0)
+unexpected_cost = st.number_input("⚠️ One-Time Unexpected Cost ($)", min_value=0, value=0, step=1000)
+
+# Separate expense categories
+personnel_expense = df[df["Account"].str.contains("Salary|Wages|Payroll", case=False, na=False)]["Amount"].sum()
+program_expense = df[df["Account"].str.contains("Program|Construction|Materials|Supplies", case=False, na=False)]["Amount"].sum()
+other_expense = expenses - (personnel_expense + program_expense)
+
+# Adjusted income and expenses
+scenario_donation = income * (1 + donation_increase / 100)
+scenario_grant = income * (grant_change / 100)  # optional approximation
+scenario_income = scenario_donation + scenario_grant
+
+adj_personnel = personnel_expense * (1 + personnel_change / 100)
+adj_program = program_expense * (1 + program_change / 100)
+
+scenario_expenses = adj_personnel + adj_program + other_expense + (-unexpected_cost)
+scenario_net = scenario_income + scenario_expenses
+
+# Display results
+st.markdown("### 📉 Projected Scenario Outcome")
+st.metric("📈 Adjusted Net Cash Flow", f"{format_currency(scenario_net)}")
+st.caption("This projection includes selected revenue and expense changes.")
 
     # --- Multi-Year Chart ---
     st.subheader("📆 Multi-Year Comparison")
