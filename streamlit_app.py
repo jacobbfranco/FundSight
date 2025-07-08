@@ -151,7 +151,7 @@ if uploaded_file:
             fig, ax = plt.subplots()
             ax.pie(grant_by_source, labels=grant_by_source.index, autopct="%1.1f%%", startangle=90)
             ax.axis("equal")
-            st.pyplot(fig)fig)
+            st.pyplot(fig)
 
             st.dataframe(grant_df)
 
