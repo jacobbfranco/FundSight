@@ -232,46 +232,4 @@ if show_email_button and uploaded_file:
             st.success("✅ Board PDF sent successfully!")
 
         except Exception as e:
-            st.error(f"Error sending PDF: {e}")            if board_notes.strip():
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Board Notes", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.multi_cell(0, 10, board_notes)
-
-            # --- Signature (Optional) ---
-            if include_signature:
-                pdf.ln(10)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, "_____________________", ln=True)
-                pdf.cell(0, 10, "Board Member Signature", ln=True)
-
-            # --- Footer ---
-            pdf.set_y(-20)
-            pdf.set_font("Arial", "I", 10)
-            pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
-
-            # --- Save and Send ---
-            pdf_output = "/tmp/fundsight_board_report.pdf"
-            pdf.output(pdf_output)
-
-            msg = MIMEMultipart()
-            msg["From"] = st.secrets["email"]["email_user"]
-            msg["To"] = st.secrets["email"]["email_user"]
-            msg["Subject"] = f"Board Report for {selected_client}"
-            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
-
-            with open(pdf_output, "rb") as f:
-                attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                msg.attach(attachment)
-
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
-                server.send_message(msg)
-
-            st.success("✅ Board PDF sent successfully!")
-
-        except Exception as e:
-            st.error(f"Error sending PDF: {e}")
+            st.error(f"Error sending PDF: {e}")            
