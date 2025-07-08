@@ -131,27 +131,27 @@ if show_email_button and uploaded_file:
         try:
             pdf = FPDF()
             pdf.add_page()
-            pdf.set_auto_page_break(auto=False)
+            pdf.set_font("Arial", size=12)
 
             # Logo
             if os.path.exists("fundsight_logo.png"):
                 pdf.image("fundsight_logo.png", x=10, y=8, w=33)
 
-            # Header
-            pdf.set_xy(50, 10)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
-            pdf.set_xy(150, 10)
+            # Header Info
+            pdf.set_xy(10, 10)
+            pdf.set_font("Arial", style="B", size=12)
             pdf.cell(0, 10, f"{pd.Timestamp.today():%B %d, %Y}", ln=True, align="R")
-            pdf.ln(10)
+            pdf.set_font("Arial", style="", size=12)
+            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
 
             # Board Financial Summary
+            pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Board Financial Summary", ln=True)
             pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 8, f"Total Income:           ${income:,.2f}", ln=True)
-            pdf.cell(0, 8, f"Total Expenses:         ${expenses:,.2f}", ln=True)
-            pdf.cell(0, 8, f"Net Cash Flow:          ${net:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Income:           ${income:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Total Expenses:         ${expenses:,.2f}", ln=True)
+            pdf.cell(0, 10, f"Net Cash Flow:          ${net:,.2f}", ln=True)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
@@ -159,8 +159,8 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Scenario Modeling", ln=True)
             pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 8, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
-            pdf.cell(0, 8, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
+            pdf.cell(0, 10, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
+            pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
@@ -168,49 +168,45 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Financial Ratios", ln=True)
             pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 8, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
-            pdf.cell(0, 8, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
+            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
-            # Mortgage Summary (if applicable)
+            # Mortgage Summary (if available)
             if mortgage_summary:
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, "Mortgage Summary", ln=True)
                 pdf.set_font("Arial", "", 12)
                 for line in mortgage_summary.strip().split("\n"):
-                    pdf.cell(0, 8, line, ln=True)
+                    pdf.cell(0, 10, line, ln=True)
                 pdf.line(10, pdf.get_y(), 200, pdf.get_y())
                 pdf.ln(5)
 
-            # Prepared Note
-            pdf.set_font("Arial", "I", 11)
-            pdf.multi_cell(0, 8, "Prepared by FundSight Dashboard\nData sourced from QuickBooks and mortgage uploads.")
-            pdf.ln(4)
-
-            # Board Notes
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, "Board Notes:", ln=True)
-            pdf.set_font("Arial", "I", 11)
-            pdf.multi_cell(0, 8, "- Add notes here on strategic items, grants, or operational concerns.\n- This can be customized or linked to comments from your dashboard.")
-            pdf.ln(4)
-
-            # Signature
-            if include_signature:
+            # ✅ Board Notes Section
+            if board_notes.strip():
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "Board Notes", ln=True)
                 pdf.set_font("Arial", "", 12)
-                pdf.ln(4)
+                pdf.multi_cell(0, 10, board_notes)
+                pdf.ln(5)
+
+            # Signature Section (if enabled)
+            if include_signature:
+                pdf.ln(10)
+                pdf.set_font("Arial", "", 12)
                 pdf.multi_cell(0, 10, "_____________________\nBoard Member Signature")
 
             # Footer
-            pdf.set_y(-15)
-            pdf.set_font("Arial", "I", 9)
+            pdf.set_y(-20)
+            pdf.set_font("Arial", "I", 10)
             pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
-            # Save PDF
+            # Output PDF file
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
-            # Send email
+            # Email logic
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
             msg["To"] = st.secrets["email"]["email_user"]
