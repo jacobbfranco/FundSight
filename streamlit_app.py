@@ -24,7 +24,7 @@ budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type="csv
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type="csv")
 
 # ✅ Add this line for Board Notes input
-board_notes = st.sidebar.text_area("📝 Board Notes (for PDF)", height=150)
+
 
 include_signature = st.sidebar.checkbox("🖋 Include Signature Section")
 show_email_button = st.sidebar.checkbox("📤 Enable Email to Board")
@@ -118,6 +118,9 @@ if mortgage_file:
         st.dataframe(mortgage_df)
 
         mortgage_summary = f"\nDelinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: ${mortgage_df['Balance'].sum():,.2f}"
+st.markdown("---")
+st.subheader("📝 Board Notes")
+board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --------------------
 # PDF & Email Section
