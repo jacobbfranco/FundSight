@@ -23,6 +23,9 @@ uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type="csv")
 budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type="csv")
 mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type="csv")
 
+# ✅ Add this line for Board Notes input
+board_notes = st.sidebar.text_area("📝 Board Notes (for PDF)", height=150)
+
 include_signature = st.sidebar.checkbox("🖋 Include Signature Section")
 show_email_button = st.sidebar.checkbox("📤 Enable Email to Board")
 
