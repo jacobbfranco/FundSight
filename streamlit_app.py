@@ -1,4 +1,4 @@
-import streamlit as st
+oh import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import timedelta
@@ -160,7 +160,7 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, "Scenario Modeling", ln=True)
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Projected Net Cash Flow: ${scenario_net:,.2f}", ln=True)
-            pdf.cell(0, 10, f"(Donation ↑ {donation_increase:+}%, Expense ↓ {expense_reduction}%)", ln=True)
+            pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Expense reduction: {expense_reduction}%)", ln=True)
             pdf.ln(5)
 
             # Ratios
