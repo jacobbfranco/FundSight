@@ -1,3 +1,4 @@
+# Full FundSight App
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,7 +10,7 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
-# 👉 Currency Formatter
+# --- Helper: Format currency with parentheses for negatives ---
 def format_currency(value):
     if value < 0:
         return f"(${abs(value):,.2f})"
@@ -32,13 +33,13 @@ mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type=
 include_signature = st.sidebar.checkbox("🖋 Include Signature Section")
 show_email_button = st.sidebar.checkbox("📤 Enable Email to Board")
 
-# --- Main Heading ---
+# --- Main Header ---
 st.markdown(f"""
 ## FundSight Dashboard for {selected_client}  
 <span style='font-size:16px; color:gray;'>Built for Nonprofits • Financial Clarity at a Glance</span>
 """, unsafe_allow_html=True)
 
-# --- Load QuickBooks CSV ---
+# --- Load & Process Main Data ---
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
     df["Date"] = pd.to_datetime(df["Date"])
@@ -69,26 +70,20 @@ if uploaded_file:
     program_expense = df[df["Account"].str.contains("Program|Construction|Materials|Supplies", case=False, na=False)]["Amount"].sum()
     other_expense = expenses - (personnel_expense + program_expense)
 
-    scenario_donation = income * (1 + donation_increase / 100)
-    scenario_grant = income * (grant_change / 100)
-    scenario_income = scenario_donation + scenario_grant
-
-    adj_personnel = personnel_expense * (1 + personnel_change / 100)
-    adj_program = program_expense * (1 + program_change / 100)
-
-    scenario_expenses = adj_personnel + adj_program + other_expense + (-unexpected_cost)
+    scenario_income = (income * (1 + donation_increase / 100)) + (income * (grant_change / 100))
+    scenario_expenses = (personnel_expense * (1 + personnel_change / 100)) + (program_expense * (1 + program_change / 100)) + other_expense + (-unexpected_cost)
     scenario_net = scenario_income + scenario_expenses
 
     st.markdown("### 📉 Projected Scenario Outcome")
     st.metric("📈 Adjusted Net Cash Flow", format_currency(scenario_net))
     st.caption("This projection includes selected revenue and expense changes.")
 
-    # --- Multi-Year Chart ---
+    # --- Multi-Year Comparison ---
     st.subheader("📆 Multi-Year Comparison")
     if df["Date"].dt.year.nunique() > 1:
         st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
 
-    # --- Financial Ratios ---
+    # --- Financial KPIs ---
     st.subheader("📊 Key Financial Ratios")
     monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
     days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
@@ -147,7 +142,7 @@ if mortgage_file:
 st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
-# --- PDF + Email ---
+# --- Email PDF ---
 if show_email_button and uploaded_file:
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
@@ -155,20 +150,17 @@ if show_email_button and uploaded_file:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
-
-            # --- Logo and Header ---
             if os.path.exists("fundsight_logo.png"):
                 pdf.image("fundsight_logo.png", x=10, y=10, w=30)
             pdf.set_font("Arial", "B", 12)
             pdf.set_xy(160, 10)
             pdf.cell(40, 10, f"{pd.Timestamp.today():%B %d, %Y}", align="R")
             pdf.ln(20)
-
             pdf.set_xy(10, 30)
             pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
 
-            # --- Summary Section ---
+            # Financial Summary
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Board Financial Summary", ln=True)
@@ -177,7 +169,7 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
             pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
 
-            # --- Scenario Modeling ---
+            # Scenario Modeling
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Scenario Modeling", ln=True)
@@ -185,7 +177,7 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
             pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
 
-            # --- Financial Ratios ---
+            # KPIs
             pdf.ln(5)
             pdf.set_font("Arial", "B", 12)
             pdf.cell(0, 10, "Financial Ratios", ln=True)
@@ -193,7 +185,7 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
             pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
 
-            # --- Mortgage Summary (Optional) ---
+            # Mortgage
             if mortgage_summary:
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
@@ -202,7 +194,7 @@ if show_email_button and uploaded_file:
                 for line in mortgage_summary.split("\n"):
                     pdf.cell(0, 10, line, ln=True)
 
-            # --- Board Notes Section ---
+            # Notes
             if board_notes.strip():
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
@@ -210,8 +202,36 @@ if show_email_button and uploaded_file:
                 pdf.set_font("Arial", "", 12)
                 pdf.multi_cell(0, 10, board_notes)
 
-            # --- Signature Section (Optional) ---
             if include_signature:
                 pdf.ln(10)
                 pdf.cell(0, 10, "_____________________", ln=True)
                 pdf.cell(0, 10, "Board Member Signature", ln=True)
+
+            pdf.set_y(-20)
+            pdf.set_font("Arial", "I", 10)
+            pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
+
+            # Save and email
+            output_path = "/tmp/fundsight_board_report.pdf"
+            pdf.output(output_path)
+
+            msg = MIMEMultipart()
+            msg["From"] = st.secrets["email"]["email_user"]
+            msg["To"] = st.secrets["email"]["email_user"]
+            msg["Subject"] = f"Board Report for {selected_client}"
+            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
+
+            with open(output_path, "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+                msg.attach(part)
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
+                server.send_message(msg)
+
+            st.success("✅ PDF sent successfully.")
+
+        except Exception as e:
+            st.error(f"Error sending PDF: {e}")
