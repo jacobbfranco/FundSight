@@ -106,13 +106,95 @@ if uploaded_file:
     health_color = "🟢" if health_score >= 0.8 else "🟡" if health_score >= 0.5 else "🔴"
     st.metric(f"{health_color} Health Score", f"{health_score:.2f}")
 
-    # --- Alerts ---
-    st.subheader("🔔 Alerts")
-    threshold = st.number_input("Minimum Cash Threshold", value=5000)
-    if cash_on_hand < threshold:
-        st.error("⚠️ Alert: Cash on hand is below threshold.")
-    else:
-        st.success("✅ Cash on hand is sufficient.")
+# --- Alerts ---
+st.subheader("🔔 Alerts")
+
+# Cash Threshold Alert
+threshold = st.number_input("Minimum Cash Threshold", value=5000)
+if cash_on_hand < threshold:
+    st.error("⚠️ Alert: Cash on hand is below minimum threshold.")
+else:
+    st.success("✅ Cash on hand is sufficient.")
+
+# Total Expenses Threshold
+expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000)
+if abs(expenses) > expense_limit:
+    st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
+else:
+    st.success("✅ Expenses are within acceptable range.")
+
+# Program Ratio Alert
+min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75)
+if program_ratio < min_program_ratio:
+    st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
+else:
+    st.success("✅ Program Ratio meets the target.")
+
+# Total Expenses Threshold
+expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000)
+if abs(expenses) > expense_limit:
+    st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
+else:
+    st.success("✅ Expenses are within acceptable range.")
+
+# Program Ratio Alert
+min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75)
+if program_ratio < min_program_ratio:
+    st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
+else:
+    st.success("✅ Program Ratio meets the target.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+    
 
     # --- Budget vs Actuals ---
     if budget_file is not None:
