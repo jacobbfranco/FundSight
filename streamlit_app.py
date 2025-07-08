@@ -10,19 +10,14 @@ from fpdf import FPDF
 import os
 
 # App setup
-st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
+st.set_page_config(page_title=f"FundSight Dashboard – {selected_client}", layout="wide", page_icon="📊")
 
-# Polished header layout
-col_logo, col_text = st.columns([1, 3])
-with col_logo:
-    st.image("fundsight_logo.png", width=120)
-with col_text:
-    st.markdown("""
-        <h2 style='margin-bottom:0;'>📊 FundSight Dashboard</h2>
-        <p style='margin-top:5px; font-size:16px; color:gray;'>
-        Built for Nonprofits • Financial Clarity at a Glance
-        </p>
-    """, unsafe_allow_html=True)
+# Logo and heading
+st.image("fundsight_logo.png", width=200)
+st.markdown(f"""
+## FundSight Dashboard for {selected_client}  
+<span style='font-size:16px; color:gray;'>Built for Nonprofits • Financial Clarity at a Glance</span>
+""", unsafe_allow_html=True)
 
 # Sidebar
 st.sidebar.header("👥 Client Selection")
