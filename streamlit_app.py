@@ -31,9 +31,6 @@ st.markdown(f"""
 <span style='font-size:16px; color:gray;'>Built for Nonprofits • Financial Clarity at a Glance</span>
 """, unsafe_allow_html=True)
 
-# --- Board Notes ---
-st.markdown("### 📝 Board Notes")
-board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- Load & Process QuickBooks CSV ---
 if uploaded_file:
@@ -122,6 +119,10 @@ if mortgage_file:
         st.dataframe(mortgage_df)
 
         mortgage_summary = f"\nDelinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: ${mortgage_df['Balance'].sum():,.2f}"
+
+# --- Board Notes ---
+st.markdown("### 📝 Board Notes")
+board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- PDF + Email ---
 if show_email_button and uploaded_file:
