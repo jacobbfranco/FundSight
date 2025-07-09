@@ -239,8 +239,16 @@ st.success("✅ You can come back and update these fields anytime. PDF export an
 st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
-# --- PDF + Email ---
+# --- PDF Section Selection Checkboxes ---
 if show_email_button and uploaded_file:
+    st.markdown("### 🖍 Select Sections to Include in Board PDF")
+    include_summary = st.checkbox("Include Financial Summary", value=True)
+    include_scenario = st.checkbox("Include Scenario Modeling", value=True)
+    include_ratios = st.checkbox("Include Financial Ratios", value=True)
+    include_mortgage = st.checkbox("Include Mortgage Summary", value=bool(mortgage_file))
+    include_notes = st.checkbox("Include Board Notes", value=True)
+    include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
+
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
@@ -261,32 +269,35 @@ if show_email_button and uploaded_file:
             pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
 
             # --- Summary Section ---
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Board Financial Summary", ln=True)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Total Income:           {format_currency(income)}", ln=True)
-            pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
-            pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
+            if include_summary:
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "Board Financial Summary", ln=True)
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 10, f"Total Income:           {format_currency(income)}", ln=True)
+                pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
+                pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
 
             # --- Scenario Modeling ---
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Scenario Modeling", ln=True)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
-            pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
+            if include_scenario:
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "Scenario Modeling", ln=True)
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
+                pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
 
             # --- Financial Ratios ---
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Financial Ratios", ln=True)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
-            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            if include_ratios:
+                pdf.ln(5)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 10, "Financial Ratios", ln=True)
+                pdf.set_font("Arial", "", 12)
+                pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
+                pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
 
-            # --- Mortgage Summary (Optional) ---
-            if 'mortgage_summary' in locals() and mortgage_summary:
+            # --- Mortgage Summary ---
+            if include_mortgage and mortgage_summary:
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, "Mortgage Summary", ln=True)
@@ -295,15 +306,15 @@ if show_email_button and uploaded_file:
                     pdf.cell(0, 10, line, ln=True)
 
             # --- Board Notes Section ---
-            if 'board_notes' in locals() and board_notes.strip():
+            if include_notes and board_notes.strip():
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
                 pdf.cell(0, 10, "Board Notes", ln=True)
                 pdf.set_font("Arial", "", 12)
                 pdf.multi_cell(0, 10, board_notes)
 
-            # --- Signature Section (Optional) ---
-            if include_signature:
+            # --- Signature Section ---
+            if include_signature_block:
                 pdf.ln(10)
                 pdf.cell(0, 10, "_____________________", ln=True)
                 pdf.cell(0, 10, "Board Member Signature", ln=True)
