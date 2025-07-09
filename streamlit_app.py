@@ -127,37 +127,43 @@ if uploaded_file:
     else:
         st.success("✅ Program Ratio meets the target.")
 
-    # --- Grant Intelligence Module ---
-    st.subheader("🎓 Grant Intelligence Module")
+ # --- Grant Intelligence Module ---
+st.subheader("🎓 Grant Intelligence Module")
 
-    grant_summary = ""
-    if uploaded_file is not None:
-        grant_keywords = ["grant", "foundation", "fund", "award"]
-        grant_df = df[df["Account"].str.contains("|".join(grant_keywords), case=False, na=False)]
+grant_summary = ""
+if uploaded_file is not None:
+    grant_keywords = ["grant", "foundation", "fund", "award"]
+    grant_df = df[df["Account"].str.contains("|".join(grant_keywords), case=False, na=False)]
 
-        if not grant_df.empty:
-            source_col = "Name" if "Name" in grant_df.columns else "Account"
-            grant_by_source = grant_df.groupby(source_col)["Amount"].sum().sort_values(ascending=False)
+    if not grant_df.empty:
+        source_col = "Name" if "Name" in grant_df.columns else "Account"
+        grant_by_source = grant_df.groupby(source_col)["Amount"].sum().sort_values(ascending=False)
 
-            total_grants = grant_df["Amount"].sum()
-            top_source = grant_by_source.idxmax()
-            top_amount = grant_by_source.max()
+        total_grants = grant_df["Amount"].sum()
+        top_source = grant_by_source.idxmax()
+        top_amount = grant_by_source.max()
 
-            st.metric("🎁 Total Grant Income", format_currency(total_grants))
-            st.metric("🏆 Top Grant Source", f"{top_source} ({format_currency(top_amount)})")
+        st.metric("🎁 Total Grant Income", format_currency(total_grants))
+        st.metric("🏆 Top Grant Source", f"{top_source} ({format_currency(top_amount)})")
 
-            st.bar_chart(grant_by_source)
+        st.bar_chart(grant_by_source)
 
+        # ✅ Pie chart fix
+        grant_by_source_positive = grant_by_source[grant_by_source > 0]
+        if not grant_by_source_positive.empty:
             fig, ax = plt.subplots()
-            ax.pie(grant_by_source, labels=grant_by_source.index, autopct="%1.1f%%", startangle=90)
+            ax.pie(grant_by_source_positive, labels=grant_by_source_positive.index, autopct="%1.1f%%", startangle=90)
             ax.axis("equal")
             st.pyplot(fig)
-
-            st.dataframe(grant_df)
-
-            grant_summary = f"Total Grants: {format_currency(total_grants)}\nTop Source: {top_source} - {format_currency(top_amount)}"
         else:
-            st.info("No grant-related transactions detected in this dataset.")
+            st.info("No positive grant income sources available to display in pie chart.")
+
+        # ✅ Data table
+        st.dataframe(grant_df)
+
+        grant_summary = f"Total Grants: {format_currency(total_grants)}\nTop Source: {top_source} - {format_currency(top_amount)}"
+    else:
+        st.info("No grant-related transactions detected in this dataset.")
 
     # --- Budget vs Actuals ---
     if budget_file is not None:
