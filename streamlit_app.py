@@ -204,9 +204,7 @@ if uploaded_file is not None:
 
             mortgage_summary = f"Delinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: {format_currency(mortgage_df['Balance'].sum())}"
 
-    # --- Board Notes ---
-    st.markdown("### 📝 Board Notes")
-    board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
+
 
 # --- Form 990 Organizer & Prep Module ---
 st.markdown("### 🧾 IRS Form 990 Organizer")
@@ -236,6 +234,10 @@ with st.expander("📝 Program Services"):
     program_3 = st.text_area("Program Service 3", height=100)
 
 st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
+
+    # --- Board Notes ---
+    st.markdown("### 📝 Board Notes")
+    board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- PDF + Email ---
 if show_email_button and uploaded_file:
