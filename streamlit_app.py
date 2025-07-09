@@ -127,7 +127,7 @@ if uploaded_file:
     else:
         st.success("✅ Program Ratio meets the target.")
 
- # --- Grant Intelligence Module ---
+# --- Grant Intelligence Module ---
 st.subheader("🎓 Grant Intelligence Module")
 
 grant_summary = ""
@@ -139,32 +139,30 @@ if uploaded_file is not None:
         source_col = "Name" if "Name" in grant_df.columns else "Account"
         grant_by_source = grant_df.groupby(source_col)["Amount"].sum().sort_values(ascending=False)
 
+        # Remove negative values (if any) for pie chart
+        grant_by_source = grant_by_source[grant_by_source > 0]
+
         total_grants = grant_df["Amount"].sum()
-        top_source = grant_by_source.idxmax()
-        top_amount = grant_by_source.max()
+        top_source = grant_by_source.idxmax() if not grant_by_source.empty else "N/A"
+        top_amount = grant_by_source.max() if not grant_by_source.empty else 0
 
         st.metric("🎁 Total Grant Income", format_currency(total_grants))
         st.metric("🏆 Top Grant Source", f"{top_source} ({format_currency(top_amount)})")
 
-        st.bar_chart(grant_by_source)
+        if not grant_by_source.empty:
+            st.bar_chart(grant_by_source)
 
-        # ✅ Pie chart fix
-        grant_by_source_positive = grant_by_source[grant_by_source > 0]
-        if not grant_by_source_positive.empty:
             fig, ax = plt.subplots()
-            ax.pie(grant_by_source_positive, labels=grant_by_source_positive.index, autopct="%1.1f%%", startangle=90)
+            ax.pie(grant_by_source, labels=grant_by_source.index, autopct="%1.1f%%", startangle=90)
             ax.axis("equal")
             st.pyplot(fig)
-        else:
-            st.info("No positive grant income sources available to display in pie chart.")
 
-        # ✅ Data table
         st.dataframe(grant_df)
 
         grant_summary = f"Total Grants: {format_currency(total_grants)}\nTop Source: {top_source} - {format_currency(top_amount)}"
     else:
         st.info("No grant-related transactions detected in this dataset.")
-
+   
     # --- Budget vs Actuals ---
     if budget_file is not None:
         st.subheader("📊 Budget vs Actuals")
