@@ -235,9 +235,9 @@ with st.expander("📝 Program Services"):
 
 st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
 
-    # --- Board Notes ---
-    st.markdown("### 📝 Board Notes")
-    board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
+# --- Board Notes ---
+st.markdown("### 📝 Board Notes")
+board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- PDF + Email ---
 if show_email_button and uploaded_file:
