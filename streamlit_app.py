@@ -9,38 +9,45 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
+# --- Formatting ---
 def format_currency(value):
     if value < 0:
         return f"(${abs(value):,.2f})"
-    else:
-        return f"${value:,.2f}"
+    return f"${value:,.2f}"
 
 # --- Setup ---
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 st.image("fundsight_logo.png", width=200)
 
-# --- Sidebar: Uploads + Settings ---
-st.sidebar.header("👥 Client Selection")
-clients = ["Client A", "Client B", "Client C"]
-selected_client = st.sidebar.selectbox("Select Client", clients)
+# --- Sidebar ---
+with st.sidebar:
+    st.header("👥 Client Settings")
+    clients = ["Client A", "Client B", "Client C"]
+    selected_client = st.selectbox("Select Client", clients)
 
-uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type="csv")
-budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type="csv")
-mortgage_file = st.sidebar.file_uploader("Upload Mortgage CSV (optional)", type="csv")
-include_signature = st.sidebar.checkbox("🖋 Include Signature Section")
-show_email_button = st.sidebar.checkbox("📤 Enable Email to Board")
+    st.markdown("#### Upload Files")
+    uploaded_file = st.file_uploader("QuickBooks CSV", type="csv", help="Export from QuickBooks > Reports > Transactions")
+    budget_file = st.file_uploader("Budget CSV (optional)", type="csv", help="Include 'Account' and 'Budget Amount'")
+    mortgage_file = st.file_uploader("Mortgage CSV (optional)", type="csv", help="Includes loan info for BuildTracker")
 
-# --- Sidebar: Client Goals (Health Score) ---
-st.sidebar.header("🎯 Client Goals")
-goal_cash = st.sidebar.number_input("Cash on Hand Goal ($)", value=10000)
-goal_income = st.sidebar.number_input("Monthly Income Goal ($)", value=5000)
-goal_program_ratio = st.sidebar.slider("Program Ratio Goal (%)", 0.0, 1.0, 0.75)
+    st.markdown("#### Display Settings")
+    include_signature = st.checkbox("🖋 Include Signature Section in PDF")
+    show_email_button = st.checkbox("📤 Enable Email Report Button")
+
+    st.markdown("---")
+    st.header("🎯 Goals (Health Score)")
+    goal_cash = st.number_input("Cash on Hand Goal ($)", value=10000)
+    goal_income = st.number_input("Monthly Income Goal ($)", value=5000)
+    goal_program_ratio = st.slider("Program Ratio Goal", 0.0, 1.0, 0.75)
 
 # --- Header ---
-st.markdown(f"""
-## FundSight Dashboard for {selected_client}  
-<span style='font-size:16px; color:gray;'>Built for Nonprofits • Financial Clarity at a Glance</span>
-""", unsafe_allow_html=True)
+st.markdown(f"""## FundSight Dashboard for **{selected_client}**
+<small style='color: gray;'>Designed for Nonprofits • QuickBooks-Compatible</small>""", unsafe_allow_html=True)
+st.markdown("---")
+
+# File display message
+if not uploaded_file:
+    st.info("⬆️ Upload your QuickBooks CSV file to begin.")
 
 # --- Load CSV + Process ---
 if uploaded_file:
