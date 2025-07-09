@@ -240,100 +240,98 @@ st.success("✅ You can come back and update these fields anytime. PDF export an
 # --- PDF + Email ---
 if show_email_button and uploaded_file:
     st.markdown("### 📤 Send PDF Report")
-    ...
-        st.markdown("### 📤 Send PDF Report")
-        if st.button("Send PDF Report"):
-            try:
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_auto_page_break(auto=True, margin=15)
+    if st.button("Send PDF Report"):
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_auto_page_break(auto=True, margin=15)
 
-                # --- Logo and Header ---
-                if os.path.exists("fundsight_logo.png"):
-                    pdf.image("fundsight_logo.png", x=10, y=10, w=30)
-                pdf.set_font("Arial", "B", 12)
-                pdf.set_xy(160, 10)
-                pdf.cell(40, 10, f"{pd.Timestamp.today():%B %d, %Y}", align="R")
-                pdf.ln(20)
+            # --- Logo and Header ---
+            if os.path.exists("fundsight_logo.png"):
+                pdf.image("fundsight_logo.png", x=10, y=10, w=30)
+            pdf.set_font("Arial", "B", 12)
+            pdf.set_xy(160, 10)
+            pdf.cell(40, 10, f"{pd.Timestamp.today():%B %d, %Y}", align="R")
+            pdf.ln(20)
 
-                pdf.set_xy(10, 30)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+            pdf.set_xy(10, 30)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
 
-                # --- Summary Section ---
+            # --- Summary Section ---
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Board Financial Summary", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Total Income:           {format_currency(income)}", ln=True)
+            pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
+            pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
+
+            # --- Scenario Modeling ---
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Scenario Modeling", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
+            pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
+
+            # --- Financial Ratios ---
+            pdf.ln(5)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Financial Ratios", ln=True)
+            pdf.set_font("Arial", "", 12)
+            pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
+            pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+
+            # --- Mortgage Summary (Optional) ---
+            if 'mortgage_summary' in locals() and mortgage_summary:
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Board Financial Summary", ln=True)
+                pdf.cell(0, 10, "Mortgage Summary", ln=True)
                 pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Total Income:           {format_currency(income)}", ln=True)
-                pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
-                pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
+                for line in mortgage_summary.split("\n"):
+                    pdf.cell(0, 10, line, ln=True)
 
-                # --- Scenario Modeling ---
+            # --- Board Notes Section ---
+            if 'board_notes' in locals() and board_notes.strip():
                 pdf.ln(5)
                 pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Scenario Modeling", ln=True)
+                pdf.cell(0, 10, "Board Notes", ln=True)
                 pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
-                pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
+                pdf.multi_cell(0, 10, board_notes)
 
-                # --- Financial Ratios ---
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Financial Ratios", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
-                pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
+            # --- Signature Section (Optional) ---
+            if include_signature:
+                pdf.ln(10)
+                pdf.cell(0, 10, "_____________________", ln=True)
+                pdf.cell(0, 10, "Board Member Signature", ln=True)
 
-                # --- Mortgage Summary (Optional) ---
-                if mortgage_summary:
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.cell(0, 10, "Mortgage Summary", ln=True)
-                    pdf.set_font("Arial", "", 12)
-                    for line in mortgage_summary.split("\n"):
-                        pdf.cell(0, 10, line, ln=True)
+            # --- Footer ---
+            pdf.set_y(-20)
+            pdf.set_font("Arial", "I", 10)
+            pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
-                # --- Board Notes Section ---
-                if board_notes.strip():
-                    pdf.ln(5)
-                    pdf.set_font("Arial", "B", 12)
-                    pdf.cell(0, 10, "Board Notes", ln=True)
-                    pdf.set_font("Arial", "", 12)
-                    pdf.multi_cell(0, 10, board_notes)
+            # --- Save and Send ---
+            pdf_output = "/tmp/fundsight_board_report.pdf"
+            pdf.output(pdf_output)
 
-                # --- Signature Section (Optional) ---
-                if include_signature:
-                    pdf.ln(10)
-                    pdf.cell(0, 10, "_____________________", ln=True)
-                    pdf.cell(0, 10, "Board Member Signature", ln=True)
+            msg = MIMEMultipart()
+            msg["From"] = st.secrets["email"]["email_user"]
+            msg["To"] = st.secrets["email"]["email_user"]
+            msg["Subject"] = f"Board Report for {selected_client}"
+            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
 
-                # --- Footer ---
-                pdf.set_y(-20)
-                pdf.set_font("Arial", "I", 10)
-                pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
+            with open(pdf_output, "rb") as f:
+                attachment = MIMEApplication(f.read(), _subtype="pdf")
+                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+                msg.attach(attachment)
 
-                # --- Save and Send ---
-                pdf_output = "/tmp/fundsight_board_report.pdf"
-                pdf.output(pdf_output)
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
+                server.send_message(msg)
 
-                msg = MIMEMultipart()
-                msg["From"] = st.secrets["email"]["email_user"]
-                msg["To"] = st.secrets["email"]["email_user"]
-                msg["Subject"] = f"Board Report for {selected_client}"
-                msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
+            st.success("✅ Board PDF sent successfully!")
 
-                with open(pdf_output, "rb") as f:
-                    attachment = MIMEApplication(f.read(), _subtype="pdf")
-                    attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                    msg.attach(attachment)
-
-                with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                    server.starttls()
-                    server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
-                    server.send_message(msg)
-
-                st.success("✅ Board PDF sent successfully!")
-
-            except Exception as e:
-                st.error(f"Error sending PDF: {e}")
+        except Exception as e:
+            st.error(f"Error sending PDF: {e}")
