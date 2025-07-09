@@ -208,6 +208,35 @@ if uploaded_file is not None:
     st.markdown("### 📝 Board Notes")
     board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
+    # --- Form 990 Organizer & Prep Module ---
+st.markdown("### 🧾 IRS Form 990 Organizer")
+st.markdown("Use this section to organize key Form 990 details throughout the year.")
+
+with st.expander("📌 Basic Organization Details"):
+    org_name = st.text_input("Organization Name")
+    ein = st.text_input("Employer Identification Number (EIN)")
+    tax_year = st.text_input("Tax Year (e.g. 2024)")
+    tax_preparer = st.text_input("Tax Preparer or Firm")
+
+with st.expander("💼 Governance and Policies"):
+    board_size = st.number_input("Number of Board Members", min_value=1, step=1)
+    conflict_policy = st.radio("Conflict of Interest Policy in Place?", ["Yes", "No"])
+    whistleblower_policy = st.radio("Whistleblower Policy?", ["Yes", "No"])
+    document_retention = st.radio("Document Retention Policy?", ["Yes", "No"])
+
+with st.expander("💸 Compensation & Fundraising"):
+    ceo_name = st.text_input("CEO/Executive Director Name")
+    ceo_comp = st.number_input("CEO Total Compensation", min_value=0, step=1000)
+    fundraising_expense = st.number_input("Fundraising Expenses", min_value=0, step=1000)
+
+with st.expander("📝 Program Services"):
+    st.markdown("Describe your major program services and accomplishments:")
+    program_1 = st.text_area("Program Service 1", height=100)
+    program_2 = st.text_area("Program Service 2", height=100)
+    program_3 = st.text_area("Program Service 3", height=100)
+
+st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
+    
     # --- PDF + Email ---
     if show_email_button and uploaded_file:
         st.markdown("### 📤 Send PDF Report")
