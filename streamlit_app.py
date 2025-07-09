@@ -236,9 +236,11 @@ with st.expander("📝 Program Services"):
     program_3 = st.text_area("Program Service 3", height=100)
 
 st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
-    
-    # --- PDF + Email ---
-    if show_email_button and uploaded_file:
+
+# --- PDF + Email ---
+if show_email_button and uploaded_file:
+    st.markdown("### 📤 Send PDF Report")
+    ...
         st.markdown("### 📤 Send PDF Report")
         if st.button("Send PDF Report"):
             try:
