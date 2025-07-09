@@ -208,7 +208,7 @@ if uploaded_file is not None:
     st.markdown("### 📝 Board Notes")
     board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
-    # --- Form 990 Organizer & Prep Module ---
+# --- Form 990 Organizer & Prep Module ---
 st.markdown("### 🧾 IRS Form 990 Organizer")
 st.markdown("Use this section to organize key Form 990 details throughout the year.")
 
