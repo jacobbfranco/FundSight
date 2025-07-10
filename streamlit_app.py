@@ -1,5 +1,3 @@
-# FundSight: Full Polished App with All Dashboard Logic
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -30,8 +28,8 @@ def styled_metric(icon, label, value):
     """
 
 # --- Header ---
-st.markdown("<h1 style='text-align:center;'>📊 FundSight: Built for Habitat Affiliates</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align:center; color:gray;'>Smart financial insight for community builders</h4>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>📊 FundSight: Dashboard for Nonprofit Finance</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center; color:gray;'>Built for Habitat Affiliates and Mission-Driven Leaders</h4>", unsafe_allow_html=True)
 st.markdown("<hr style='margin-top:10px; margin-bottom:30px;'>", unsafe_allow_html=True)
 
 # --- Sidebar: Client and File Upload ---
@@ -125,6 +123,8 @@ if uploaded_file:
     else:
         st.info("Not enough data to calculate ratios.")
 
+    st.markdown("<hr style='margin-top:30px; margin-bottom:30px;'>", unsafe_allow_html=True)
+
     # --- Alerts Section ---
     st.markdown("🚨 <b>Alerts & Thresholds</b>", unsafe_allow_html=True)
     cash_threshold = st.sidebar.number_input("Low Cash Warning Threshold", value=5000)
@@ -134,7 +134,10 @@ if uploaded_file:
     large_expenses = df[df["Amount"] < -high_expense_limit]
     if not large_expenses.empty:
         st.warning("⚠️ High expenses detected:")
-        st.dataframe(large_expenses[["Date", "Description", "Amount"]])
+        try:
+            st.dataframe(large_expenses[["Date", "Description", "Amount"]])
+        except:
+            st.dataframe(large_expenses)
 
     st.markdown("<hr style='margin-top:30px; margin-bottom:30px;'>", unsafe_allow_html=True)
 
@@ -155,25 +158,23 @@ if uploaded_file:
 
     st.markdown("<hr style='margin-top:30px; margin-bottom:30px;'>", unsafe_allow_html=True)
 
-    # --- Email PDF ---
+    # --- Email PDF Report ---
     st.markdown("📧 <b>Email Report</b>", unsafe_allow_html=True)
     email_to = st.text_input("Recipient Email", value="jacob.b.franco@gmail.com")
     email_btn = st.button("Send Report via Email")
     if email_btn:
         if not os.path.exists("FundSight_Report.pdf"):
-            st.error("Please generate the PDF first.")
+            st.error("⚠️ Please generate the PDF first.")
         else:
             msg = MIMEMultipart()
             msg["From"] = os.getenv("EMAIL_USER", "your_email@example.com")
             msg["To"] = email_to
             msg["Subject"] = f"FundSight Report - {selected_client}"
-            body = "Attached is your FundSight financial dashboard report."
-            msg.attach(MIMEText(body, "plain"))
+            msg.attach(MIMEText("Attached is your FundSight financial dashboard report.", "plain"))
             with open("FundSight_Report.pdf", "rb") as f:
                 part = MIMEApplication(f.read(), _subtype="pdf")
                 part.add_header("Content-Disposition", "attachment", filename="FundSight_Report.pdf")
                 msg.attach(part)
-
             try:
                 server = smtplib.SMTP("smtp.gmail.com", 587)
                 server.starttls()
@@ -184,34 +185,6 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"❌ Email failed to send: {e}")
 
-    # --- Mortgage Toggle Placeholder ---
-    show_mortgage = st.sidebar.checkbox("🏠 Show Mortgage Tracker")
-    if show_mortgage:
-        st.markdown("🏠 <b>Mortgage Module (Coming Soon)</b>", unsafe_allow_html=True)
-        st.info("Upload mortgage CSVs and view delinquency dashboards in Phase V.")
-
-    # --- Scenario Modeling Toggle ---
-    show_scenario = st.sidebar.checkbox("📈 Show Scenario Modeling")
-    if show_scenario:
-        st.markdown("📈 <b>Scenario Modeling (Coming Soon)</b>", unsafe_allow_html=True)
-        st.info("This section will allow you to model revenue/expense changes and view impact on cash flow.")
-
-    # --- Board Report Toggle ---
-    show_board = st.sidebar.checkbox("🧾 Show Board Report Section")
-    if show_board:
-        st.markdown("🧾 <b>Board Report Mode</b>", unsafe_allow_html=True)
-        st.info("Customize board-ready financial views. Exportable to PDF and sharable with board members.")
-
-    st.markdown("<hr style='margin-top:30px; margin-bottom:10px;'>", unsafe_allow_html=True)
-
-# --- If no file uploaded ---
 else:
     st.info("👈 Upload a QuickBooks CSV to see your full dashboard.")
-
-# --- Footer ---
-st.markdown("""
-<div style='text-align:center; margin-top:50px; font-size:13px; color:gray;'>
-    © 2025 FundSight Solutions • Built for mission-driven finance teams
-</div>
-""", unsafe_allow_html=True)
         
