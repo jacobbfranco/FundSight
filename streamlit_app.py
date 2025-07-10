@@ -26,9 +26,33 @@ with st.sidebar:
     selected_client = st.selectbox("Select Client", clients)
 
     st.markdown("#### Upload Files")
-    uploaded_file = st.file_uploader("QuickBooks CSV", type="csv", help="Export from QuickBooks > Reports > Transactions")
-    budget_file = st.file_uploader("Budget CSV (optional)", type="csv", help="Include 'Account' and 'Budget Amount'")
-    mortgage_file = st.file_uploader("Mortgage CSV (optional)", type="csv", help="Includes loan info for BuildTracker")
+
+    # QuickBooks CSV Upload
+    uploaded_file = st.file_uploader(
+        "QuickBooks CSV",
+        type="csv",
+        help="Export from QuickBooks > Reports > Transactions"
+    )
+    if uploaded_file is None:
+        st.caption("✅ Include columns like: Date, Account, Amount, Name")
+
+    # Budget CSV Upload
+    budget_file = st.file_uploader(
+        "Budget CSV (optional)",
+        type="csv",
+        help="Compare actuals vs budget"
+    )
+    if budget_file is None:
+        st.caption("✅ Include: Account, Budget Amount")
+
+    # Mortgage CSV Upload
+    mortgage_file = st.file_uploader(
+        "Mortgage CSV (optional)",
+        type="csv",
+        help="Track loan balances and delinquencies"
+    )
+    if mortgage_file is None:
+        st.caption("✅ Include: Borrower, Loan ID, Amount Due, Amount Paid, Due Date")
 
     st.markdown("#### Display Settings")
     include_signature = st.checkbox("🖋 Include Signature Section in PDF")
