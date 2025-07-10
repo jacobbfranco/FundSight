@@ -272,7 +272,7 @@ if mortgage_file:
             st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
             st.dataframe(mortgage_df)
 
-except Exception as e:
+    except Exception as e:
         st.error(f"❌ Error processing mortgage file: {e}")
 
 # --- Form 990 Organizer & Prep Module ---
