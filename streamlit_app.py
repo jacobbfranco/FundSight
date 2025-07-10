@@ -30,8 +30,8 @@ def styled_metric(icon, label, value):
     """
 
 # --- Header ---
-st.markdown("<h1 style='text-align:center;'>📊 FundSight: Nonprofit Finance Dashboard</h1>", unsafe_allow_html=True)
-st.markdown("<h4 style='text-align:center; color:gray;'>Financial clarity and insight for mission-driven leaders</h4>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;'>📊 FundSight: Built for Habitat Affiliates</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center; color:gray;'>Smart financial insight for community builders</h4>", unsafe_allow_html=True)
 st.markdown("<hr style='margin-top:10px; margin-bottom:30px;'>", unsafe_allow_html=True)
 
 # --- Sidebar: Client and File Upload ---
@@ -53,7 +53,8 @@ if uploaded_file:
     tags = {}
     if tag_file:
         tag_df = pd.read_csv(tag_file)
-        tags = dict(zip(tag_df["Transaction"], tag_df["Tag"]))
+        if "Transaction" in tag_df.columns and "Tag" in tag_df.columns:
+            tags = dict(zip(tag_df["Transaction"], tag_df["Tag"]))
 
     # --- KPI Metrics ---
     total_income = df[df["Amount"] > 0]["Amount"].sum()
@@ -75,8 +76,6 @@ if uploaded_file:
     forecast = df.copy()
     forecast = forecast.groupby(df["Date"].dt.date)["Amount"].sum().reset_index()
     forecast = forecast.rename(columns={"Date": "Day"})
-
-    # ✅ Convert 'Day' column to datetime
     forecast["Day"] = pd.to_datetime(forecast["Day"])
     forecast = forecast.set_index("Day").resample("D").sum().fillna(0).cumsum()
 
@@ -126,8 +125,6 @@ if uploaded_file:
     else:
         st.info("Not enough data to calculate ratios.")
 
-    st.markdown("<hr style='margin-top:30px; margin-bottom:30px;'>", unsafe_allow_html=True)
-
     # --- Alerts Section ---
     st.markdown("🚨 <b>Alerts & Thresholds</b>", unsafe_allow_html=True)
     cash_threshold = st.sidebar.number_input("Low Cash Warning Threshold", value=5000)
@@ -170,10 +167,8 @@ if uploaded_file:
             msg["From"] = os.getenv("EMAIL_USER", "your_email@example.com")
             msg["To"] = email_to
             msg["Subject"] = f"FundSight Report - {selected_client}"
-
             body = "Attached is your FundSight financial dashboard report."
             msg.attach(MIMEText(body, "plain"))
-
             with open("FundSight_Report.pdf", "rb") as f:
                 part = MIMEApplication(f.read(), _subtype="pdf")
                 part.add_header("Content-Disposition", "attachment", filename="FundSight_Report.pdf")
@@ -189,6 +184,34 @@ if uploaded_file:
             except Exception as e:
                 st.error(f"❌ Email failed to send: {e}")
 
-# --- Fallback Footer ---
+    # --- Mortgage Toggle Placeholder ---
+    show_mortgage = st.sidebar.checkbox("🏠 Show Mortgage Tracker")
+    if show_mortgage:
+        st.markdown("🏠 <b>Mortgage Module (Coming Soon)</b>", unsafe_allow_html=True)
+        st.info("Upload mortgage CSVs and view delinquency dashboards in Phase V.")
+
+    # --- Scenario Modeling Toggle ---
+    show_scenario = st.sidebar.checkbox("📈 Show Scenario Modeling")
+    if show_scenario:
+        st.markdown("📈 <b>Scenario Modeling (Coming Soon)</b>", unsafe_allow_html=True)
+        st.info("This section will allow you to model revenue/expense changes and view impact on cash flow.")
+
+    # --- Board Report Toggle ---
+    show_board = st.sidebar.checkbox("🧾 Show Board Report Section")
+    if show_board:
+        st.markdown("🧾 <b>Board Report Mode</b>", unsafe_allow_html=True)
+        st.info("Customize board-ready financial views. Exportable to PDF and sharable with board members.")
+
+    st.markdown("<hr style='margin-top:30px; margin-bottom:10px;'>", unsafe_allow_html=True)
+
+# --- If no file uploaded ---
 else:
     st.info("👈 Upload a QuickBooks CSV to see your full dashboard.")
+
+# --- Footer ---
+st.markdown("""
+<div style='text-align:center; margin-top:50px; font-size:13px; color:gray;'>
+    © 2025 FundSight Solutions • Built for mission-driven finance teams
+</div>
+""", unsafe_allow_html=True)
+        
