@@ -75,6 +75,9 @@ if uploaded_file:
     forecast = df.copy()
     forecast = forecast.groupby(df["Date"].dt.date)["Amount"].sum().reset_index()
     forecast = forecast.rename(columns={"Date": "Day"})
+
+    # ✅ Convert 'Day' column to datetime
+    forecast["Day"] = pd.to_datetime(forecast["Day"])
     forecast = forecast.set_index("Day").resample("D").sum().fillna(0).cumsum()
 
     fig, ax = plt.subplots()
