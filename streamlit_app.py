@@ -309,6 +309,7 @@ st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- PDF Section Selection Checkboxes ---
+mortgage_summary = ""  # Prevent undefined error if mortgage_file isn't uploaded
 if show_email_button and uploaded_file:
     st.markdown("### 🖍 Select Sections to Include in Board PDF")
     include_summary = st.checkbox("Include Financial Summary", value=True)
