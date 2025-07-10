@@ -216,19 +216,31 @@ if uploaded_file is not None:
     else:
         st.info("No grant-related transactions detected in this dataset.")
    
-    # --- Budget vs Actuals ---
-    if budget_file is not None:
-        st.subheader("📊 Budget vs Actuals")
+ # --- Budget vs Actuals ---
+if budget_file:
+    try:
         budget_df = pd.read_csv(budget_file)
 
-        if "Actual" not in budget_df.columns and "Budget Amount" in budget_df.columns:
-            actuals = df.groupby("Account")["Amount"].sum().reset_index()
-            actuals.rename(columns={"Amount": "Actual"}, inplace=True)
-            budget_df = pd.merge(budget_df, actuals, on="Account", how="left")
+        # Check for required columns
+        required_budget_cols = ["Account", "Budget Amount"]
+        missing_budget_cols = [col for col in required_budget_cols if col not in budget_df.columns]
+        if missing_budget_cols:
+            st.error(f"❌ Budget file is missing columns: {', '.join(missing_budget_cols)}")
+        else:
+            # Attach actuals
+            if "Actual" not in budget_df.columns:
+                actuals = df.groupby("Account")["Amount"].sum().reset_index()
+                actuals.rename(columns={"Amount": "Actual"}, inplace=True)
+                budget_df = pd.merge(budget_df, actuals, on="Account", how="left")
 
-        budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
-        st.dataframe(budget_df)
+            # Calculate Variance
+            budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
+            st.subheader("📊 Budget vs Actuals")
+            st.dataframe(budget_df)
 
+    except Exception as e:
+        st.error(f"❌ Error reading budget file: {e}")
+    
     # --- Mortgage Tracker ---
     mortgage_summary = ""
     if mortgage_file:
