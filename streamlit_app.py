@@ -1,358 +1,213 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
-from datetime import timedelta
+from datetime import datetime, timedelta
+from fpdf import FPDF
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from fpdf import FPDF
+from email.mime.text import MIMEText
 import os
+import json
 
-# --- Formatting ---
-def format_currency(value):
-    if value < 0:
-        return f"(${abs(value):,.2f})"
-    return f"${value:,.2f}"
-
-# --- Setup ---
+# --- Page Config ---
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
-st.image("fundsight_logo.png", width=200)
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("👥 Client Settings")
-    clients = ["Client A", "Client B", "Client C"]
-    selected_client = st.selectbox("Select Client", clients)
+# --- Helper Functions ---
+def format_currency(value):
+    return f"${value:,.2f}" if value >= 0 else f"(${abs(value):,.2f})"
 
-    st.markdown("#### Upload Files")
-    uploaded_file = st.file_uploader("QuickBooks CSV", type="csv", help="Export from QuickBooks > Reports > Transactions")
-    budget_file = st.file_uploader("Budget CSV (optional)", type="csv", help="Include 'Account' and 'Budget Amount'")
-    mortgage_file = st.file_uploader("Mortgage CSV (optional)", type="csv", help="Includes loan info for BuildTracker")
+def styled_metric(icon, label, value):
+    return f"""
+    <div style='background-color:#f9f9f9; padding:20px; border-radius:15px; box-shadow:2px 2px 10px rgba(0,0,0,0.1); text-align:center'>
+        <div style='font-size:32px'>{icon}</div>
+        <div style='font-size:18px; font-weight:bold; margin-top:5px'>{label}</div>
+        <div style='font-size:24px; color:#2e8b57; margin-top:5px'>{value}</div>
+    </div>
+    """
 
-    st.markdown("#### Display Settings")
-    include_signature = st.checkbox("🖋 Include Signature Section in PDF")
-    show_email_button = st.checkbox("📤 Enable Email Report Button")
-
-    st.markdown("---")
-    st.header("🎯 Goals (Health Score)")
-    goal_cash = st.number_input("Cash on Hand Goal ($)", value=10000)
-    goal_income = st.number_input("Monthly Income Goal ($)", value=5000)
-    goal_program_ratio = st.slider("Program Ratio Goal", 0.0, 1.0, 0.75)
+def add_section_divider():
+    st.markdown("<hr style='margin-top:30px; margin-bottom:30px;'>", unsafe_allow_html=True)
 
 # --- Header ---
-st.markdown(f"""## FundSight Dashboard for **{selected_client}**
-<small style='color: gray;'>Designed for Nonprofits • QuickBooks-Compatible</small>""", unsafe_allow_html=True)
-st.markdown("---")
+st.markdown("<h1 style='text-align:center;'>📊 FundSight: Nonprofit Finance Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h4 style='text-align:center; color:gray;'>Built for Habitat Affiliates and mission-driven teams</h4>", unsafe_allow_html=True)
+add_section_divider()
 
-# File display message
-if not uploaded_file:
-    st.info("⬆️ Upload your QuickBooks CSV file to begin.")
+# --- Sidebar: Client and File Upload ---
+client_names = ["Client A", "Client B", "Client C"]
+selected_client = st.sidebar.selectbox("Select Client", client_names)
+st.sidebar.markdown(f"### Upload files for {selected_client}")
+uploaded_file = st.sidebar.file_uploader("Upload QuickBooks CSV", type=["csv"])
+budget_file = st.sidebar.file_uploader("Upload Budget CSV (optional)", type=["csv"])
+tag_file = st.sidebar.file_uploader("Upload Tag CSV (optional)", type=["csv"])
 
-# --- Load CSV + Process ---
+# --- Load and Process Uploaded File ---
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
-    df["Date"] = pd.to_datetime(df["Date"])
-    df["Account"] = df["Account"].str.strip()
-    if "Name" in df.columns:
-        df["Name"] = df["Name"].fillna("Unknown")
+    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+    df = df.dropna(subset=["Date"])
 
-    income = df[df["Amount"] > 0]["Amount"].sum()
-    expenses = df[df["Amount"] < 0]["Amount"].sum()
-    net = income + expenses
-    cash_on_hand = df["Amount"].sum()
+    # --- Optional Tags ---
+    tags = {}
+    if tag_file:
+        tag_df = pd.read_csv(tag_file)
+        if "Transaction" in tag_df.columns and "Tag" in tag_df.columns:
+            tags = dict(zip(tag_df["Transaction"], tag_df["Tag"]))
+
+    # --- KPI Metrics ---
+    total_income = df[df["Amount"] > 0]["Amount"].sum()
+    total_expenses = df[df["Amount"] < 0]["Amount"].sum()
+    net_cash = total_income + total_expenses
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("🟢 Total Income", format_currency(income))
-    col2.metric("🔴 Total Expenses", format_currency(expenses))
-    col3.metric("💰 Net Cash Flow", format_currency(net))
-    st.markdown("---")
+    with col1:
+        st.markdown(styled_metric("🟢", "Total Income", format_currency(total_income)), unsafe_allow_html=True)
+    with col2:
+        st.markdown(styled_metric("🔴", "Total Expenses", format_currency(total_expenses)), unsafe_allow_html=True)
+    with col3:
+        st.markdown(styled_metric("💰", "Net Cash Flow", format_currency(net_cash)), unsafe_allow_html=True)
 
-    # --- Scenario Modeling ---
-    st.subheader("🔄 Scenario Modeling")
-    donation_increase = st.slider("📈 Donation Increase (%)", -50, 100, 0)
-    grant_change = st.slider("🏛️ Grant Revenue Change (%)", -50, 100, 0)
-    personnel_change = st.slider("👥 Personnel Expense Change (%)", -50, 50, 0)
-    program_change = st.slider("🧱 Program Expense Change (%)", -50, 50, 0)
-    unexpected_cost = st.number_input("⚠️ One-Time Unexpected Cost ($)", min_value=0, value=0, step=1000)
+    add_section_divider()
 
-    personnel_expense = df[df["Account"].str.contains("Salary|Wages|Payroll", case=False, na=False)]["Amount"].sum()
-    program_expense = df[df["Account"].str.contains("Program|Construction|Materials|Supplies", case=False, na=False)]["Amount"].sum()
-    other_expense = expenses - (personnel_expense + program_expense)
+    # --- 30-Day Forecast Chart ---
+    st.markdown("📈 <b>30-Day Forecast</b>", unsafe_allow_html=True)
+    forecast = df.copy()
+    forecast = forecast.groupby(df["Date"].dt.date)["Amount"].sum().reset_index()
+    forecast = forecast.rename(columns={"Date": "Day"})
+    forecast["Day"] = pd.to_datetime(forecast["Day"])
+    forecast = forecast.set_index("Day").resample("D").sum().fillna(0).cumsum()
 
-    scenario_donation = income * (1 + donation_increase / 100)
-    scenario_grant = income * (grant_change / 100)
-    scenario_income = scenario_donation + scenario_grant
+    fig, ax = plt.subplots()
+    ax.plot(forecast.index, forecast["Amount"], linewidth=2)
+    ax.set_title("Cumulative Cash Flow Forecast", fontsize=14)
+    ax.set_ylabel("Amount ($)")
+    ax.set_xlabel("Date")
+    ax.grid(True)
+    st.pyplot(fig)
 
-    adj_personnel = personnel_expense * (1 + personnel_change / 100)
-    adj_program = program_expense * (1 + program_change / 100)
-    scenario_expenses = adj_personnel + adj_program + other_expense + (-unexpected_cost)
-    scenario_net = scenario_income + scenario_expenses
+    add_section_divider()
 
-    st.markdown("### 📉 Projected Scenario Outcome")
-    st.metric("📈 Adjusted Net Cash Flow", format_currency(scenario_net))
-
-    # --- Multi-Year Chart ---
-    if df["Date"].dt.year.nunique() > 1:
-        st.subheader("📆 Multi-Year Comparison")
-        st.bar_chart(df.groupby(df["Date"].dt.year)["Amount"].sum())
-
-    # --- Ratios + Health Score ---
-    st.subheader("📊 Key Financial Ratios")
-    monthly_avg_expense = abs(df[df["Amount"] < 0].set_index("Date")["Amount"].resample("M").sum().mean())
-    days_cash = (cash_on_hand / monthly_avg_expense * 30) if monthly_avg_expense else 0
-    program_ratio = abs(program_expense) / abs(expenses) if expenses else 0
-    st.metric("💵 Days Cash on Hand", f"{days_cash:,.1f}")
-    st.metric("📊 Program Expense Ratio", f"{program_ratio:.2%}")
-
-    # --- Health Score ---
-    st.subheader("🧮 Client Health Score")
-    cash_score = min(cash_on_hand / goal_cash, 1)
-    income_score = min(income / goal_income, 1)
-    ratio_score = min(program_ratio / goal_program_ratio, 1)
-    health_score = round((cash_score + income_score + ratio_score) / 3, 2)
-    health_color = "🟢" if health_score >= 0.8 else "🟡" if health_score >= 0.5 else "🔴"
-    st.metric(f"{health_color} Health Score", f"{health_score:.2f}")
-
-    # --- Alerts ---
-    st.subheader("🔔 Alerts")
-    threshold = st.number_input("Minimum Cash Threshold", value=5000, key="cash_threshold")
-    if cash_on_hand < threshold:
-        st.error("⚠️ Alert: Cash on hand is below minimum threshold.")
+    # --- Expenses by Category ---
+    st.markdown("📊 <b>Expenses by Category</b>", unsafe_allow_html=True)
+    if "Category" in df.columns:
+        expense_df = df[df["Amount"] < 0].groupby("Category")["Amount"].sum().sort_values()
+        st.bar_chart(expense_df.abs())
     else:
-        st.success("✅ Cash on hand is sufficient.")
+        st.warning("No 'Category' column found in CSV.")
 
-    expense_limit = st.number_input("📉 Maximum Total Expenses Allowed ($)", value=100000, key="expense_limit")
-    if abs(expenses) > expense_limit:
-        st.error(f"⚠️ Alert: Total expenses (${abs(expenses):,.2f}) exceed the limit.")
-    else:
-        st.success("✅ Expenses are within acceptable range.")
+    add_section_divider()
 
-    min_program_ratio = st.slider("📊 Minimum Program Expense Ratio", 0.0, 1.0, 0.75, key="program_ratio_min")
-    if program_ratio < min_program_ratio:
-        st.error(f"⚠️ Alert: Program Ratio is below goal ({program_ratio:.2%} < {min_program_ratio:.0%})")
-    else:
-        st.success("✅ Program Ratio meets the target.")
-
-# --- Grant Intelligence Module ---
-st.subheader("🎓 Grant Intelligence Module")
-
-grant_summary = ""
-if uploaded_file is not None:
-    grant_keywords = ["grant", "foundation", "fund", "award"]
-    grant_df = df[df["Account"].str.contains("|".join(grant_keywords), case=False, na=False)]
-
-    if not grant_df.empty:
-        source_col = "Name" if "Name" in grant_df.columns else "Account"
-        grant_by_source = grant_df.groupby(source_col)["Amount"].sum().sort_values(ascending=False)
-
-        # Remove negative values (if any) for pie chart
-        grant_by_source = grant_by_source[grant_by_source > 0]
-
-        total_grants = grant_df["Amount"].sum()
-        top_source = grant_by_source.idxmax() if not grant_by_source.empty else "N/A"
-        top_amount = grant_by_source.max() if not grant_by_source.empty else 0
-
-        st.metric("🎁 Total Grant Income", format_currency(total_grants))
-        st.metric("🏆 Top Grant Source", f"{top_source} ({format_currency(top_amount)})")
-
-        if not grant_by_source.empty:
-            st.bar_chart(grant_by_source)
-
-            fig, ax = plt.subplots()
-            ax.pie(grant_by_source, labels=grant_by_source.index, autopct="%1.1f%%", startangle=90)
-            ax.axis("equal")
-            st.pyplot(fig)
-
-        st.dataframe(grant_df)
-
-        grant_summary = f"Total Grants: {format_currency(total_grants)}\nTop Source: {top_source} - {format_currency(top_amount)}"
-    else:
-        st.info("No grant-related transactions detected in this dataset.")
-   
     # --- Budget vs Actuals ---
-    if budget_file is not None:
-        st.subheader("📊 Budget vs Actuals")
+    st.markdown("📊 <b>Budget vs Actuals</b>", unsafe_allow_html=True)
+    if budget_file:
         budget_df = pd.read_csv(budget_file)
+        if "Category" in budget_df.columns and "Budget" in budget_df.columns:
+            actuals = df[df["Amount"] < 0].groupby("Category")["Amount"].sum().abs()
+            comparison = budget_df.set_index("Category")[["Budget"]].join(actuals.rename("Actual")).fillna(0)
+            comparison["Variance"] = comparison["Budget"] - comparison["Actual"]
+            st.dataframe(comparison.style.format("${:,.2f}"))
+        else:
+            st.warning("Your budget file must include 'Category' and 'Budget' columns.")
 
-        if "Actual" not in budget_df.columns and "Budget Amount" in budget_df.columns:
-            actuals = df.groupby("Account")["Amount"].sum().reset_index()
-            actuals.rename(columns={"Amount": "Actual"}, inplace=True)
-            budget_df = pd.merge(budget_df, actuals, on="Account", how="left")
+    add_section_divider()
 
-        budget_df["Variance"] = budget_df["Budget Amount"] - budget_df["Actual"]
-        st.dataframe(budget_df)
+    # --- Financial Ratios ---
+    st.markdown("📊 <b>Financial Ratios</b>", unsafe_allow_html=True)
+    income = df[df["Amount"] > 0]["Amount"].sum()
+    expenses = abs(df[df["Amount"] < 0]["Amount"].sum())
+    if expenses > 0:
+        savings_ratio = (income - expenses) / expenses
+        burn_rate = expenses / 30
+        st.markdown(f"**Savings Ratio:** {savings_ratio:.2f}")
+        st.markdown(f"**Burn Rate (Monthly):** ${burn_rate:,.2f}")
+    else:
+        st.info("Not enough data to calculate ratios.")
 
-    # --- Mortgage Tracker ---
-    mortgage_summary = ""
-    if mortgage_file:
-        st.subheader("🏠 Mortgage Tracker")
-        mortgage_df = pd.read_csv(mortgage_file)
-        if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
-            mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
-            mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
-            mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
-            mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
+    add_section_divider()
 
-            st.metric("Total Outstanding Balance", format_currency(mortgage_df["Balance"].sum()))
-            st.metric("🚨 Delinquent Loans", mortgage_df["Delinquent"].sum())
+    # --- Alerts Section ---
+    st.markdown("🚨 <b>Alerts & Thresholds</b>", unsafe_allow_html=True)
+    cash_threshold = st.sidebar.number_input("Low Cash Warning Threshold", value=5000)
+    if net_cash < cash_threshold:
+        st.error(f"⚠️ Cash is below threshold: {format_currency(net_cash)}")
+    high_expense_limit = st.sidebar.number_input("High Expense Alert", value=10000)
+    large_expenses = df[df["Amount"] < -high_expense_limit]
+    if not large_expenses.empty:
+        st.warning("⚠️ High expenses detected:")
+        columns_to_show = [col for col in ["Date", "Description", "Amount"] if col in large_expenses.columns]
+        st.dataframe(large_expenses[columns_to_show])
 
-            delinquency_counts = mortgage_df['Delinquent'].value_counts()
-            values = [delinquency_counts.get(False, 0), delinquency_counts.get(True, 0)]
-            labels = ["Current", "Delinquent"]
+    add_section_divider()
 
-            fig, ax = plt.subplots()
-            ax.pie(values, labels=labels, autopct="%1.1f%%", startangle=90)
-            ax.axis("equal")
-            st.pyplot(fig)
+    # --- Board Notes Section ---
+    st.markdown("📝 <b>Board Notes</b>", unsafe_allow_html=True)
+    board_notes = st.text_area("Enter any notes to include in the board report:", key="board_notes")
 
-            st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
-            st.dataframe(mortgage_df)
+    add_section_divider()
 
-            mortgage_summary = f"Delinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: {format_currency(mortgage_df['Balance'].sum())}"
+    # --- PDF Report Generator ---
+    st.markdown("📤 <b>Download PDF Report</b>", unsafe_allow_html=True)
+    if st.button("Generate PDF"):
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 10, txt=f"FundSight Report - {selected_client}", ln=1, align='C')
+        pdf.set_font("Arial", "", 12)
+        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Net Cash Flow: {format_currency(net_cash)}", ln=1)
+        pdf.cell(200, 10, txt=f"Total Income: {format_currency(total_income)}", ln=1)
+        pdf.cell(200, 10, txt=f"Total Expenses: {format_currency(total_expenses)}", ln=1)
+        pdf.ln(10)
+        pdf.multi_cell(0, 10, f"Board Notes:
+{board_notes}")
+        pdf.output("FundSight_Report.pdf")
+        with open("FundSight_Report.pdf", "rb") as f:
+            st.download_button("📥 Download Report", f, file_name="FundSight_Report.pdf")
 
+    add_section_divider()
 
-
-# --- Form 990 Organizer & Prep Module ---
-st.markdown("### 🧾 IRS Form 990 Organizer")
-st.markdown("Use this section to organize key Form 990 details throughout the year.")
-
-with st.expander("📌 Basic Organization Details"):
-    org_name = st.text_input("Organization Name")
-    ein = st.text_input("Employer Identification Number (EIN)")
-    tax_year = st.text_input("Tax Year (e.g. 2024)")
-    tax_preparer = st.text_input("Tax Preparer or Firm")
-
-with st.expander("💼 Governance and Policies"):
-    board_size = st.number_input("Number of Board Members", min_value=1, step=1)
-    conflict_policy = st.radio("Conflict of Interest Policy in Place?", ["Yes", "No"])
-    whistleblower_policy = st.radio("Whistleblower Policy?", ["Yes", "No"])
-    document_retention = st.radio("Document Retention Policy?", ["Yes", "No"])
-
-with st.expander("💸 Compensation & Fundraising"):
-    ceo_name = st.text_input("CEO/Executive Director Name")
-    ceo_comp = st.number_input("CEO Total Compensation", min_value=0, step=1000)
-    fundraising_expense = st.number_input("Fundraising Expenses", min_value=0, step=1000)
-
-with st.expander("📝 Program Services"):
-    st.markdown("Describe your major program services and accomplishments:")
-    program_1 = st.text_area("Program Service 1", height=100)
-    program_2 = st.text_area("Program Service 2", height=100)
-    program_3 = st.text_area("Program Service 3", height=100)
-
-st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
-
-# --- Board Notes ---
-st.markdown("### 📝 Board Notes")
-board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
-
-# --- PDF Section Selection Checkboxes ---
-if show_email_button and uploaded_file:
-    st.markdown("### 🖍 Select Sections to Include in Board PDF")
-    include_summary = st.checkbox("Include Financial Summary", value=True)
-    include_scenario = st.checkbox("Include Scenario Modeling", value=True)
-    include_ratios = st.checkbox("Include Financial Ratios", value=True)
-    include_mortgage = st.checkbox("Include Mortgage Summary", value=bool(mortgage_file))
-    include_notes = st.checkbox("Include Board Notes", value=True)
-    include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
-
-    st.markdown("### 📤 Send PDF Report")
-    if st.button("Send PDF Report"):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_auto_page_break(auto=True, margin=15)
-
-            # --- Logo and Header ---
-            if os.path.exists("fundsight_logo.png"):
-                pdf.image("fundsight_logo.png", x=10, y=10, w=30)
-            pdf.set_font("Arial", "B", 12)
-            pdf.set_xy(160, 10)
-            pdf.cell(40, 10, f"{pd.Timestamp.today():%B %d, %Y}", align="R")
-            pdf.ln(20)
-
-            pdf.set_xy(10, 30)
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
-
-            # --- Summary Section ---
-            if include_summary:
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Board Financial Summary", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Total Income:           {format_currency(income)}", ln=True)
-                pdf.cell(0, 10, f"Total Expenses:         {format_currency(expenses)}", ln=True)
-                pdf.cell(0, 10, f"Net Cash Flow:          {format_currency(net)}", ln=True)
-
-            # --- Scenario Modeling ---
-            if include_scenario:
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Scenario Modeling", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
-                pdf.cell(0, 10, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
-
-            # --- Financial Ratios ---
-            if include_ratios:
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Financial Ratios", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.cell(0, 10, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
-                pdf.cell(0, 10, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
-
-            # --- Mortgage Summary ---
-            if include_mortgage and mortgage_summary:
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Mortgage Summary", ln=True)
-                pdf.set_font("Arial", "", 12)
-                for line in mortgage_summary.split("\n"):
-                    pdf.cell(0, 10, line, ln=True)
-
-            # --- Board Notes Section ---
-            if include_notes and board_notes.strip():
-                pdf.ln(5)
-                pdf.set_font("Arial", "B", 12)
-                pdf.cell(0, 10, "Board Notes", ln=True)
-                pdf.set_font("Arial", "", 12)
-                pdf.multi_cell(0, 10, board_notes)
-
-            # --- Signature Section ---
-            if include_signature_block:
-                pdf.ln(10)
-                pdf.cell(0, 10, "_____________________", ln=True)
-                pdf.cell(0, 10, "Board Member Signature", ln=True)
-
-            # --- Footer ---
-            pdf.set_y(-20)
-            pdf.set_font("Arial", "I", 10)
-            pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
-
-            # --- Save and Send ---
-            pdf_output = "/tmp/fundsight_board_report.pdf"
-            pdf.output(pdf_output)
-
+    # --- Email PDF ---
+    st.markdown("📧 <b>Email Report</b>", unsafe_allow_html=True)
+    email_to = st.text_input("Recipient Email", value="jacob.b.franco@gmail.com")
+    email_btn = st.button("Send Report via Email")
+    if email_btn:
+        if not os.path.exists("FundSight_Report.pdf"):
+            st.error("⚠️ Please generate the PDF first.")
+        else:
             msg = MIMEMultipart()
-            msg["From"] = st.secrets["email"]["email_user"]
-            msg["To"] = st.secrets["email"]["email_user"]
-            msg["Subject"] = f"Board Report for {selected_client}"
-            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
+            msg["From"] = os.getenv("EMAIL_USER", "your_email@example.com")
+            msg["To"] = email_to
+            msg["Subject"] = f"FundSight Report - {selected_client}"
+            body = f"Attached is the FundSight report for {selected_client}.
 
-            with open(pdf_output, "rb") as f:
-                attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                msg.attach(attachment)
+Board Notes:
+{board_notes}"
+            msg.attach(MIMEText(body, "plain"))
 
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            with open("FundSight_Report.pdf", "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header("Content-Disposition", "attachment", filename="FundSight_Report.pdf")
+                msg.attach(part)
+
+            try:
+                server = smtplib.SMTP("smtp.gmail.com", 587)
                 server.starttls()
-                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
+                server.login(os.getenv("EMAIL_USER"), os.getenv("EMAIL_PASS"))
                 server.send_message(msg)
+                server.quit()
+                st.success("✅ Email sent successfully.")
+            except Exception as e:
+                st.error(f"❌ Email failed to send: {e}")
 
-            st.success("✅ Board PDF sent successfully!")
+else:
+    st.info("👈 Upload a QuickBooks CSV to see your full dashboard.")
 
-        except Exception as e:
-            st.error(f"Error sending PDF: {e}")
-        
+# --- Footer ---
+st.markdown("<hr>", unsafe_allow_html=True)
+st.markdown(
+    "<div style='text-align:center; color:gray;'>"
+    "FundSight © 2025 | Built for mission-driven teams."
+    "</div>",
+    unsafe_allow_html=True,
