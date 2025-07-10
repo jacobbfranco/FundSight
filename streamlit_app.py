@@ -320,44 +320,33 @@ if show_email_button and uploaded_file:
     include_notes = st.checkbox("Include Board Notes", value=True)
     include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
 
-    # --- Generate Income vs Expenses Chart (for PDF) ---
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    ax.bar(["Income", "Expenses"], [income, abs(expenses)])
-    ax.set_title("Income vs Expenses")
-    ax.set_ylabel("Amount ($)")
-    chart_path = "/tmp/income_expense_chart.png"
-    fig.savefig(chart_path, bbox_inches="tight")
-    plt.close(fig)
-
-    # --- Send PDF Report ---
     st.markdown("### 📤 Send PDF Report")
-
     if st.button("Send PDF Report"):
         try:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.set_margins(15, 15, 15)
 
             # --- Logo and Header ---
             if os.path.exists("fundsight_logo.png"):
                 pdf.image("fundsight_logo.png", x=10, y=10, w=30)
-            pdf.set_font("Arial", "B", 12)
-            pdf.set_xy(50, 10)
-            pdf.cell(110, 10, "FundSight: Board Finance Report", align="C")
+
             pdf.set_xy(160, 10)
             pdf.set_font("Arial", "", 10)
             pdf.cell(40, 10, f"{pd.Timestamp.today():%b %d, %Y}", align="R")
-            pdf.ln(25)
 
             pdf.set_xy(10, 30)
-            pdf.set_font("Arial", "", 11)
-            pdf.cell(0, 8, f"Client: {selected_client}", ln=True)
+            pdf.set_font("Arial", "B", 12)
+            pdf.cell(0, 10, "Board Finance Report", ln=True, align="C")
 
-            # --- Divider ---
-            pdf.ln(2)
+            pdf.set_font("Arial", "", 11)
+            pdf.ln(4)
+            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+
+            pdf.set_draw_color(200, 200, 200)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(3)
+            pdf.ln(4)
 
             # --- Board Financial Summary ---
             if include_summary:
@@ -369,7 +358,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Key Ratios ---
+            # --- Key Ratios (Cash + Program Ratio) ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -387,7 +376,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
                 pdf.ln(3)
 
-            # --- Grant Summary (if available) ---
+            # --- Grant Summary ---
             if 'grant_summary' in locals() and grant_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Grant Summary", ln=True)
@@ -412,7 +401,7 @@ if show_email_button and uploaded_file:
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
-            # --- Board Notes ---
+            # --- Board Notes Section ---
             if include_notes and board_notes.strip():
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
@@ -428,7 +417,7 @@ if show_email_button and uploaded_file:
 
             # --- Footer ---
             pdf.set_y(-20)
-            pdf.set_font("Arial", "I", 9)
+            pdf.set_font("Arial", "I", 10)
             pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
             # --- Save and Send ---
