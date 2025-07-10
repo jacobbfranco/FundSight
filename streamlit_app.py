@@ -241,17 +241,22 @@ if budget_file:
     except Exception as e:
         st.error(f"❌ Error reading budget file: {e}")
     
-    # --- Mortgage Tracker ---
-    mortgage_summary = ""
-    if mortgage_file:
-        st.subheader("🏠 Mortgage Tracker")
+# --- Mortgage Tracker ---
+if mortgage_file:
+    try:
         mortgage_df = pd.read_csv(mortgage_file)
-        if all(col in mortgage_df.columns for col in ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]):
+        required_mortgage_cols = ["Borrower", "Loan ID", "Amount Due", "Amount Paid", "Due Date"]
+        missing_mortgage_cols = [col for col in required_mortgage_cols if col not in mortgage_df.columns]
+
+        if missing_mortgage_cols:
+            st.error(f"❌ Mortgage file is missing columns: {', '.join(missing_mortgage_cols)}")
+        else:
+            mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"], errors="coerce")
             mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
-            mortgage_df["Due Date"] = pd.to_datetime(mortgage_df["Due Date"])
             mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
             mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
 
+            st.subheader("🏠 Mortgage Tracker")
             st.metric("Total Outstanding Balance", format_currency(mortgage_df["Balance"].sum()))
             st.metric("🚨 Delinquent Loans", mortgage_df["Delinquent"].sum())
 
@@ -267,9 +272,8 @@ if budget_file:
             st.bar_chart(mortgage_df.set_index("Loan ID")["Balance"])
             st.dataframe(mortgage_df)
 
-            mortgage_summary = f"Delinquent Loans: {mortgage_df['Delinquent'].sum()}\nOutstanding Balance: {format_currency(mortgage_df['Balance'].sum())}"
-
-
+except Exception as e:
+        st.error(f"❌ Error processing mortgage file: {e}")
 
 # --- Form 990 Organizer & Prep Module ---
 st.markdown("### 🧾 IRS Form 990 Organizer")
