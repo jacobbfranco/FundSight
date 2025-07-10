@@ -75,23 +75,45 @@ if not uploaded_file:
 
 # --- Load CSV + Process ---
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
-    df["Date"] = pd.to_datetime(df["Date"])
-    df["Account"] = df["Account"].str.strip()
-    if "Name" in df.columns:
-        df["Name"] = df["Name"].fillna("Unknown")
+    try:
+        df = pd.read_csv(uploaded_file)
 
-    income = df[df["Amount"] > 0]["Amount"].sum()
-    expenses = df[df["Amount"] < 0]["Amount"].sum()
-    net = income + expenses
-    cash_on_hand = df["Amount"].sum()
+        # Validate required columns
+        required_cols = ["Date", "Account", "Amount"]
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"❌ Missing required columns: {', '.join(missing_cols)}")
+        else:
+            # Attempt to parse Date column
+            try:
+                df["Date"] = pd.to_datetime(df["Date"], errors="raise")
+            except Exception as e:
+                st.error("❌ Could not parse 'Date' column. Please check formatting (e.g. MM/DD/YYYY).")
+                st.stop()
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🟢 Total Income", format_currency(income))
-    col2.metric("🔴 Total Expenses", format_currency(expenses))
-    col3.metric("💰 Net Cash Flow", format_currency(net))
-    st.markdown("---")
+            # Clean and prep data
+            df["Account"] = df["Account"].astype(str).str.strip()
+            if "Name" in df.columns:
+                df["Name"] = df["Name"].fillna("Unknown")
 
+            # Now proceed as normal
+            income = df[df["Amount"] > 0]["Amount"].sum()
+            expenses = df[df["Amount"] < 0]["Amount"].sum()
+            net = income + expenses
+            cash_on_hand = df["Amount"].sum()
+
+            # Display metrics
+            col1, col2, col3 = st.columns(3)
+            col1.metric("🟢 Total Income", format_currency(income))
+            col2.metric("🔴 Total Expenses", format_currency(expenses))
+            col3.metric("💰 Net Cash Flow", format_currency(net))
+            st.markdown("---")
+
+            # (Continue with rest of dashboard logic...)
+    
+    except Exception as e:
+        st.error(f"❌ Error loading file: {e}")
+    
     # --- Scenario Modeling ---
     st.subheader("🔄 Scenario Modeling")
     donation_increase = st.slider("📈 Donation Increase (%)", -50, 100, 0)
