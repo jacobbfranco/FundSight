@@ -312,7 +312,6 @@ with st.expander("📝 Program Services"):
     program_2 = st.text_area("Program Service 2", height=100)
     program_3 = st.text_area("Program Service 3", height=100)
 
-st.success("✅ You can come back and update these fields anytime. PDF export and email coming soon.")
 
 # --- Board Notes ---
 st.markdown("### 📝 Board Notes")
