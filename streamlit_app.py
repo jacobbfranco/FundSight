@@ -320,9 +320,31 @@ if show_email_button and uploaded_file:
     include_notes = st.checkbox("Include Board Notes", value=True)
     include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
 
+    # --- Create Income vs Expenses Bar Chart (for PDF use) ---
+    import matplotlib.pyplot as plt
+
+    chart_path = "/tmp/income_expense_chart.png"
+    try:
+        fig, ax = plt.subplots()
+        ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
+        ax.set_title("Income vs Expenses")
+        ax.set_ylabel("Amount ($)")
+        fig.tight_layout()
+        fig.savefig(chart_path, bbox_inches="tight")
+        plt.close(fig)
+    except Exception as e:
+        chart_path = ""  # fallback if chart can't be created
+        st.warning(f"⚠️ Could not generate chart for PDF: {e}")
+
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
+            from fpdf import FPDF
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+            from email.mime.application import MIMEApplication
+            import smtplib
+
             pdf = FPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
@@ -348,7 +370,7 @@ if show_email_button and uploaded_file:
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(4)
 
-            # --- Board Financial Summary ---
+            # --- Financial Summary ---
             if include_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Financial Summary", ln=True)
@@ -358,7 +380,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Key Ratios (Cash + Program Ratio) ---
+            # --- Ratios ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -401,7 +423,7 @@ if show_email_button and uploaded_file:
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
-            # --- Board Notes Section ---
+            # --- Board Notes ---
             if include_notes and board_notes.strip():
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
@@ -409,7 +431,7 @@ if show_email_button and uploaded_file:
                 pdf.multi_cell(0, 8, board_notes)
                 pdf.ln(3)
 
-            # --- Signature Section ---
+            # --- Signature ---
             if include_signature_block:
                 pdf.ln(6)
                 pdf.cell(0, 8, "_____________________", ln=True)
@@ -426,21 +448,4 @@ if show_email_button and uploaded_file:
 
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
-            msg["To"] = st.secrets["email"]["email_user"]
-            msg["Subject"] = f"Board Report for {selected_client}"
-            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
-
-            with open(pdf_output, "rb") as f:
-                attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                msg.attach(attachment)
-
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
-                server.send_message(msg)
-
-            st.success("✅ Board PDF sent successfully!")
-
-        except Exception as e:
-            st.error(f"Error sending PDF: {e}")
+            msg["To
