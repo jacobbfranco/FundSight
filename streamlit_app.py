@@ -53,20 +53,6 @@ st.markdown(f"""
 <h4 style='color:gray; font-weight:normal; margin-top:4px;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
 """, unsafe_allow_html=True)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     st.markdown("#### Upload Files")
 
     # QuickBooks CSV Upload
