@@ -311,6 +311,21 @@ board_notes = st.text_area("Enter any notes you'd like to include in the Board P
 # --- PDF Section Selection Checkboxes ---
 mortgage_summary = ""  # Prevent undefined error if mortgage_file isn't uploaded
 
+# Generate chart for PDF
+import matplotlib.pyplot as plt
+chart_path = "/tmp/income_expense_chart.png"
+try:
+    fig, ax = plt.subplots()
+    ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
+    ax.set_title("Income vs Expenses")
+    ax.set_ylabel("Amount ($)")
+    fig.tight_layout()
+    fig.savefig(chart_path, bbox_inches="tight")
+    plt.close(fig)
+except Exception as e:
+    chart_path = ""
+    st.warning(f"⚠️ Could not generate chart for PDF: {e}")
+
 if show_email_button and uploaded_file:
     st.markdown("### 🖍 Select Sections to Include in Board PDF")
     include_summary = st.checkbox("Include Financial Summary", value=True)
@@ -320,31 +335,9 @@ if show_email_button and uploaded_file:
     include_notes = st.checkbox("Include Board Notes", value=True)
     include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
 
-    # --- Create Income vs Expenses Bar Chart (for PDF use) ---
-    import matplotlib.pyplot as plt
-
-    chart_path = "/tmp/income_expense_chart.png"
-    try:
-        fig, ax = plt.subplots()
-        ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
-        ax.set_title("Income vs Expenses")
-        ax.set_ylabel("Amount ($)")
-        fig.tight_layout()
-        fig.savefig(chart_path, bbox_inches="tight")
-        plt.close(fig)
-    except Exception as e:
-        chart_path = ""  # fallback if chart can't be created
-        st.warning(f"⚠️ Could not generate chart for PDF: {e}")
-
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
-            from fpdf import FPDF
-            from email.mime.multipart import MIMEMultipart
-            from email.mime.text import MIMEText
-            from email.mime.application import MIMEApplication
-            import smtplib
-
             pdf = FPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
@@ -365,12 +358,11 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "", 11)
             pdf.ln(4)
             pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
-
             pdf.set_draw_color(200, 200, 200)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(4)
 
-            # --- Financial Summary ---
+            # --- Board Financial Summary ---
             if include_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Financial Summary", ln=True)
@@ -380,7 +372,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Ratios ---
+            # --- Key Ratios ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -423,7 +415,7 @@ if show_email_button and uploaded_file:
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
-            # --- Board Notes ---
+            # --- Board Notes Section ---
             if include_notes and board_notes.strip():
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
@@ -431,7 +423,7 @@ if show_email_button and uploaded_file:
                 pdf.multi_cell(0, 8, board_notes)
                 pdf.ln(3)
 
-            # --- Signature ---
+            # --- Signature Section ---
             if include_signature_block:
                 pdf.ln(6)
                 pdf.cell(0, 8, "_____________________", ln=True)
@@ -442,10 +434,27 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "I", 10)
             pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
-            # --- Save and Send ---
+            # --- Save and Email PDF ---
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
             msg["To"] = st.secrets["email"]["email_user"]
+            msg["Subject"] = f"Board Report for {selected_client}"
+            msg.attach(MIMEText("Attached is your FundSight Board Summary Report.", "plain"))
+
+            with open(pdf_output, "rb") as f:
+                attachment = MIMEApplication(f.read(), _subtype="pdf")
+                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+                msg.attach(attachment)
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(st.secrets["email"]["email_user"], st.secrets["email"]["email_password"])
+                server.send_message(msg)
+
+            st.success("✅ Board PDF sent successfully!")
+
+        except Exception as e:
+            st.error(f"❌ Error sending PDF: {e}")
