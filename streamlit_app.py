@@ -369,17 +369,17 @@ if show_email_button and uploaded_file:
             if os.path.exists("fundsight_logo.png"):
                 pdf.image("fundsight_logo.png", x=85, y=10, w=40)
             pdf.set_xy(10, 30)
-            pdf.set_font("DejaVu", "", 14)
+            pdf.set_font("Arial", "", 14)
             pdf.cell(0, 10, f"Board Finance Report – {selected_client}", ln=True, align="C")
-            pdf.set_font("DejaVu", "I", 11)
-            pdf.cell(0, 10, "Built for Nonprofits – Financial Clarity at a Glance", ln=True, align="C")
+            pdf.set_font("Arial", "I", 11)
+            pdf.cell(0, 10, "Built for Nonprofits - Financial Clarity at a Glance", ln=True, align="C")
             pdf.ln(10)
 
             # --- Summary ---
             if include_summary:
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Financial Summary", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 pdf.cell(0, 8, f"Total Income:           {format_currency(income)}", ln=True)
                 pdf.cell(0, 8, f"Total Expenses:         {format_currency(expenses)}", ln=True)
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
@@ -387,52 +387,52 @@ if show_email_button and uploaded_file:
 
             # --- Ratios ---
             if include_ratios:
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 pdf.cell(0, 8, f"Days Cash on Hand: {days_cash:,.1f}", ln=True)
                 pdf.cell(0, 8, f"Program Expense Ratio: {program_ratio:.2%}", ln=True)
                 pdf.ln(3)
 
             # --- Scenario Modeling ---
             if include_scenario:
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Scenario Modeling", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 pdf.cell(0, 8, f"Projected Net Cash Flow: {format_currency(scenario_net)}", ln=True)
                 pdf.cell(0, 8, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
                 pdf.ln(3)
 
             # --- Grant Summary ---
             if include_grants and grant_summary:
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Grant Summary", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 for line in grant_summary.split("\n"):
                     pdf.cell(0, 8, line, ln=True)
                 pdf.ln(3)
 
             # --- Mortgage Summary ---
             if include_mortgage and mortgage_summary:
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Mortgage Summary", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 for line in mortgage_summary.split("\n"):
                     pdf.cell(0, 8, line, ln=True)
                 pdf.ln(3)
 
             # --- Chart ---
             if include_chart and chart_path and os.path.exists(chart_path):
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Income vs Expenses", ln=True)
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
             # --- Notes ---
             if include_notes and board_notes.strip():
-                pdf.set_font("DejaVu", "B", 11)
+                pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
-                pdf.set_font("DejaVu", "", 11)
+                pdf.set_font("Arial", "", 11)
                 pdf.multi_cell(0, 8, board_notes)
                 pdf.ln(3)
 
