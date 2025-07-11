@@ -448,4 +448,4 @@ if show_email_button and uploaded_file:
 
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
-            msg["To
+            msg["To"] = st.secrets["email"]["email_user"]
