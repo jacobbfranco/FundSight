@@ -285,6 +285,7 @@ if mortgage_file:
             mortgage_df["Balance"] = mortgage_df["Amount Due"] - mortgage_df["Amount Paid"]
             mortgage_df["Days Late"] = (pd.Timestamp.today() - mortgage_df["Due Date"]).dt.days
             mortgage_df["Delinquent"] = mortgage_df["Days Late"] > 60
+            mortgage_summary = f"Total Balance: {format_currency(mortgage_df['Balance'].sum())}\nDelinquent Loans: {mortgage_df['Delinquent'].sum()}"
 
             st.subheader("🏠 Mortgage Tracker")
             st.metric("Total Outstanding Balance", format_currency(mortgage_df["Balance"].sum()))
