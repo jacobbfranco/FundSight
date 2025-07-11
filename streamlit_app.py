@@ -28,6 +28,17 @@ def format_currency(value):
 # --- Setup ---
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
 
+# --- Hide Streamlit Default UI Elements (GitHub, Share, etc.) ---
+hide_streamlit_style = """
+    <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        .stActionButton {visibility: visible;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 # --- Branding: Logo and Header ---
 st.image("fundsight_logo.png", width=120)
 
@@ -37,9 +48,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown("---")
-
-
-
 
 # --- Sidebar ---
 with st.sidebar:
