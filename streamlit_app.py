@@ -9,6 +9,14 @@ from email.mime.application import MIMEApplication
 from fpdf import FPDF
 import os
 
+# --- Custom PDF Class with Footer ---
+class FundSightPDF(FPDF):
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 10)
+        self.set_text_color(100)
+        self.cell(0, 10, "Built for Nonprofits – Financial Clarity at a Glance", 0, 0, "C")
+
 # --- Formatting ---
 def format_currency(value):
     if value < 0:
