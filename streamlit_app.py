@@ -418,7 +418,7 @@ if show_email_button and uploaded_file:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Grant Summary", ln=True)
                 pdf.set_font("Arial", "", 11)
-                for line in grant_summary.split("\\n"):
+                for line in grant_summary.split("\n"):
                     pdf.cell(0, 8, line, ln=True)
                 pdf.ln(3)
 
@@ -426,7 +426,7 @@ if show_email_button and uploaded_file:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Mortgage Summary", ln=True)
                 pdf.set_font("Arial", "", 11)
-                for line in mortgage_summary.split("\\n"):
+                for line in mortgage_summary.split("\n"):
                     pdf.cell(0, 8, line, ln=True)
                 pdf.ln(3)
 
