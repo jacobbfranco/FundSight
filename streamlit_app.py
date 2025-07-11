@@ -328,11 +328,12 @@ if show_email_button and uploaded_file:
         ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
         ax.set_title("Income vs Expenses")
         ax.set_ylabel("Amount ($)")
+        ax.get_yaxis().set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
         fig.tight_layout()
         fig.savefig(chart_path, bbox_inches="tight")
         plt.close(fig)
     except Exception as e:
-        chart_path = ""  # fallback if chart can't be created
+        chart_path = ""
         st.warning(f"⚠️ Could not generate chart for PDF: {e}")
 
     st.markdown("### 📤 Send PDF Report")
@@ -418,9 +419,9 @@ if show_email_button and uploaded_file:
                 pdf.multi_cell(0, 8, board_notes)
                 pdf.ln(3)
 
-            # --- Signature Section ---
+            # --- Signature Section (Fixed Spacing) ---
             if include_signature_block:
-                pdf.ln(6)
+                pdf.ln(12)
                 pdf.cell(0, 8, "_____________________", ln=True)
                 pdf.cell(0, 8, "Board Member Signature", ln=True)
 
