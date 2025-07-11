@@ -27,7 +27,19 @@ def format_currency(value):
 
 # --- Setup ---
 st.set_page_config(page_title="FundSight Dashboard", layout="wide", page_icon="📊")
-st.image("fundsight_logo.png", width=200)
+
+# --- Branding: Logo and Header ---
+st.image("fundsight_logo.png", width=120)
+
+st.markdown(f"""
+<h1 style='text-align:left; font-size:32px; margin-bottom:0;'>📊 FundSight Dashboard for <span style="color:#2c3e50;">{selected_client}</span></h1>
+<h4 style='color:gray; font-weight:normal; margin-top:4px;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
+""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+
+
 
 # --- Sidebar ---
 with st.sidebar:
