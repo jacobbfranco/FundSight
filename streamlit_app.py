@@ -358,7 +358,7 @@ if show_email_button and uploaded_file:
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
             pdf.ln(5)
 
-            # --- Board Financial Summary ---
+            # --- Financial Summary ---
             if include_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Financial Summary", ln=True)
@@ -368,7 +368,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Key Ratios (Cash + Program Ratio) ---
+            # --- Key Ratios ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -386,7 +386,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
                 pdf.ln(3)
 
-            # --- Grant Intelligence (Summary Only) ---
+            # --- Grant Summary ---
             if include_grants and 'grant_summary' in locals() and grant_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Grant Summary", ln=True)
@@ -411,7 +411,7 @@ if show_email_button and uploaded_file:
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
-            # --- Board Notes Section ---
+            # --- Board Notes ---
             if include_notes and board_notes.strip():
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
@@ -419,9 +419,11 @@ if show_email_button and uploaded_file:
                 pdf.multi_cell(0, 8, board_notes)
                 pdf.ln(3)
 
-            # --- Signature Section (Fixed Spacing) ---
+            # --- Signature Section (Check Position) ---
             if include_signature_block:
-                pdf.ln(12)
+                if pdf.get_y() > 250:
+                    pdf.add_page()
+                pdf.ln(10)
                 pdf.cell(0, 8, "_____________________", ln=True)
                 pdf.cell(0, 8, "Board Member Signature", ln=True)
 
@@ -430,7 +432,7 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "I", 10)
             pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
-            # --- Save and Send ---
+            # --- Save + Email ---
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
