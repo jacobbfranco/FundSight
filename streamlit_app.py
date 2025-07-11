@@ -16,7 +16,7 @@ class FundSightPDF(FPDF):
         self.set_y(-15)
         self.set_font("Arial", "I", 10)
         self.set_text_color(100)
-        self.cell(0, 10, "Built for Nonprofits – Financial Clarity at a Glance", 0, 0, "C")
+        self.cell(0, 10, "Built for Nonprofits - Financial Clarity at a Glance", 0, 0, "C")
 
 # --- Formatting ---
 def format_currency(value):
