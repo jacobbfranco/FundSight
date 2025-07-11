@@ -311,29 +311,29 @@ board_notes = st.text_area("Enter any notes you'd like to include in the Board P
 # --- PDF Section Selection Checkboxes ---
 mortgage_summary = ""  # Prevent undefined error if mortgage_file isn't uploaded
 
-# Generate chart for PDF
-import matplotlib.pyplot as plt
-chart_path = "/tmp/income_expense_chart.png"
-try:
-    fig, ax = plt.subplots()
-    ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
-    ax.set_title("Income vs Expenses")
-    ax.set_ylabel("Amount ($)")
-    fig.tight_layout()
-    fig.savefig(chart_path, bbox_inches="tight")
-    plt.close(fig)
-except Exception as e:
-    chart_path = ""
-    st.warning(f"⚠️ Could not generate chart for PDF: {e}")
-
 if show_email_button and uploaded_file:
     st.markdown("### 🖍 Select Sections to Include in Board PDF")
     include_summary = st.checkbox("Include Financial Summary", value=True)
+    include_ratios = st.checkbox("Include Key Ratios", value=True)
     include_scenario = st.checkbox("Include Scenario Modeling", value=True)
-    include_ratios = st.checkbox("Include Financial Ratios", value=True)
+    include_grants = st.checkbox("Include Grant Summary", value=True)
     include_mortgage = st.checkbox("Include Mortgage Summary", value=bool(mortgage_file))
     include_notes = st.checkbox("Include Board Notes", value=True)
     include_signature_block = st.checkbox("Include Signature Section", value=include_signature)
+
+    # --- Create Income vs Expenses Bar Chart (for PDF use) ---
+    chart_path = "/tmp/income_expense_chart_final.png"
+    try:
+        fig, ax = plt.subplots()
+        ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
+        ax.set_title("Income vs Expenses")
+        ax.set_ylabel("Amount ($)")
+        fig.tight_layout()
+        fig.savefig(chart_path, bbox_inches="tight")
+        plt.close(fig)
+    except Exception as e:
+        chart_path = ""  # fallback if chart can't be created
+        st.warning(f"⚠️ Could not generate chart for PDF: {e}")
 
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
@@ -341,26 +341,21 @@ if show_email_button and uploaded_file:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.set_margins(15, 15, 15)
 
-            # --- Logo and Header ---
+            # --- Header ---
             if os.path.exists("fundsight_logo.png"):
                 pdf.image("fundsight_logo.png", x=10, y=10, w=30)
-
+            pdf.set_font("Arial", "B", 14)
+            pdf.set_xy(60, 12)
+            pdf.cell(0, 10, "Board Finance Report", ln=False)
+            pdf.set_font("Arial", "", 12)
             pdf.set_xy(160, 10)
-            pdf.set_font("Arial", "", 10)
             pdf.cell(40, 10, f"{pd.Timestamp.today():%b %d, %Y}", align="R")
-
-            pdf.set_xy(10, 30)
-            pdf.set_font("Arial", "B", 12)
-            pdf.cell(0, 10, "Board Finance Report", ln=True, align="C")
-
-            pdf.set_font("Arial", "", 11)
-            pdf.ln(4)
+            pdf.ln(25)
+            pdf.set_font("Arial", "", 12)
             pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
-            pdf.set_draw_color(200, 200, 200)
             pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-            pdf.ln(4)
+            pdf.ln(5)
 
             # --- Board Financial Summary ---
             if include_summary:
@@ -372,7 +367,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Key Ratios ---
+            # --- Key Ratios (Cash + Program Ratio) ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -390,8 +385,8 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"(Donation increase: {donation_increase:+}%, Grant change: {grant_change:+}%)", ln=True)
                 pdf.ln(3)
 
-            # --- Grant Summary ---
-            if 'grant_summary' in locals() and grant_summary:
+            # --- Grant Intelligence (Summary Only) ---
+            if include_grants and 'grant_summary' in locals() and grant_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Grant Summary", ln=True)
                 pdf.set_font("Arial", "", 11)
@@ -409,7 +404,7 @@ if show_email_button and uploaded_file:
                 pdf.ln(3)
 
             # --- Income vs Expenses Chart ---
-            if os.path.exists(chart_path):
+            if chart_path and os.path.exists(chart_path):
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Income vs Expenses", ln=True)
                 pdf.image(chart_path, w=120)
@@ -434,7 +429,7 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "I", 10)
             pdf.cell(0, 10, "FundSight © 2025 | Built for Nonprofits", 0, 0, "C")
 
-            # --- Save and Email PDF ---
+            # --- Save and Send ---
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
@@ -457,4 +452,4 @@ if show_email_button and uploaded_file:
             st.success("✅ Board PDF sent successfully!")
 
         except Exception as e:
-            st.error(f"❌ Error sending PDF: {e}")
+            st.error(f"Error sending PDF: {e}")
