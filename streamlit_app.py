@@ -317,7 +317,7 @@ st.success("✅ You can come back and update these fields anytime. PDF export an
 st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
-# --- PDF Class with Footer & Built-in Font Support ---
+# --- PDF Class with Footer ---
 class FundSightPDF(FPDF):
     def footer(self):
         self.set_y(-15)
@@ -370,7 +370,7 @@ if show_email_button and uploaded_file:
                 pdf.image("fundsight_logo.png", x=85, y=10, w=40)
             pdf.set_xy(10, 30)
             pdf.set_font("Arial", "", 14)
-            pdf.cell(0, 10, f"Board Finance Report – {selected_client}", ln=True, align="C")
+            pdf.cell(0, 10, f"Board Finance Report - {selected_client}", ln=True, align="C")
             pdf.set_font("Arial", "I", 11)
             pdf.cell(0, 10, "Built for Nonprofits - Financial Clarity at a Glance", ln=True, align="C")
             pdf.ln(10)
@@ -382,8 +382,7 @@ if show_email_button and uploaded_file:
                 pdf.set_font("Arial", "", 11)
                 pdf.cell(0, 8, f"Total Income:           {format_currency(income)}", ln=True)
                 pdf.cell(0, 8, f"Total Expenses:         {format_currency(expenses)}", ln=True)
-                pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
-                pdf.ln(3)
+                pdf.cell(0, 83)
 
             # --- Ratios ---
             if include_ratios:
