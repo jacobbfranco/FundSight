@@ -361,7 +361,6 @@ if show_email_button and uploaded_file:
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
-            from datetime import datetime
             pdf = FundSightPDF()
             pdf.client_name = selected_client
             pdf.add_page()
@@ -379,14 +378,14 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "", 11)
             pdf.cell(40, 10, datetime.now().strftime("%b %d, %Y"), ln=0, align="R")
 
-            pdf.set_xy(10, 20)
+            pdf.set_xy(10, 22)
             pdf.set_font("Arial", "", 11)
             pdf.set_text_color(50)
-            pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+            pdf.cell(100, 10, f"Client: {selected_client}", ln=True)
 
             pdf.set_draw_color(100)
-            pdf.line(10, 28, 200, 28)
-            pdf.ln(10)
+            pdf.line(10, 30, 200, 30)
+            pdf.ln(12)
 
             # --- PDF Sections ---
             if include_summary:
@@ -448,9 +447,11 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, "_____________________", ln=True)
                 pdf.cell(0, 8, "Board Member Signature", ln=True)
 
+            # --- Export PDF ---
             pdf_output = "/tmp/fundsight_board_report.pdf"
             pdf.output(pdf_output)
 
+            # --- Email PDF ---
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
             msg["To"] = recipient_email
