@@ -39,6 +39,12 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# --- Sidebar ---
+with st.sidebar:
+    st.header("👥 Client Settings")
+    clients = ["Client A", "Client B", "Client C"]
+    selected_client = st.selectbox("Select Client", clients)
+
 # --- Branding: Logo and Header ---
 st.image("fundsight_logo.png", width=120)
 
@@ -47,13 +53,19 @@ st.markdown(f"""
 <h4 style='color:gray; font-weight:normal; margin-top:4px;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
 """, unsafe_allow_html=True)
 
-st.markdown("---")
 
-# --- Sidebar ---
-with st.sidebar:
-    st.header("👥 Client Settings")
-    clients = ["Client A", "Client B", "Client C"]
-    selected_client = st.selectbox("Select Client", clients)
+
+
+
+
+
+
+
+
+
+
+
+
 
     st.markdown("#### Upload Files")
 
