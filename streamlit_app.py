@@ -309,8 +309,19 @@ st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
 # --- PDF Section Selection Checkboxes ---
+from fpdf import FPDF
+
+# Define PDF class with consistent footer
+class FundSightPDF(FPDF):
+    def footer(self):
+        self.set_y(-15)
+        self.set_font("Arial", "I", 10)
+        self.set_text_color(100)
+        self.cell(0, 10, "Built for Nonprofits – Financial Clarity at a Glance", 0, 0, "C")
+
 mortgage_summary = ""  # Prevent undefined error if mortgage_file isn't uploaded
 
+# Show section toggles
 if show_email_button and uploaded_file:
     st.markdown("### 🖍 Select Sections to Include in Board PDF")
     include_summary = st.checkbox("Include Financial Summary", value=True)
@@ -326,25 +337,39 @@ if show_email_button and uploaded_file:
     custom_subject = st.text_input("Email Subject", value=f"Board Finance Report for {selected_client}")
     custom_body = st.text_area("Email Body", value="Attached is your FundSight Board Finance Report.")
 
+    # --- Create Income vs Expenses Bar Chart (for PDF use) ---
+    import matplotlib.pyplot as plt
+    chart_path = "/tmp/income_expense_chart.png"
+    try:
+        fig, ax = plt.subplots()
+        ax.bar(["Income", "Expenses"], [income, abs(expenses)], color=["green", "red"])
+        ax.set_title("Income vs Expenses")
+        ax.set_ylabel("Amount ($)")
+        fig.tight_layout()
+        fig.savefig(chart_path, bbox_inches="tight")
+        plt.close(fig)
+    except Exception as e:
+        chart_path = ""
+        st.warning(f"⚠️ Could not generate chart for PDF: {e}")
+
     st.markdown("### 📤 Send PDF Report")
     if st.button("Send PDF Report"):
         try:
-            # Create PDF
             pdf = FundSightPDF()
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=20)
 
-            # --- Header: Centered Logo + Title + Tagline ---
+            # --- Header: Logo + Title + Tagline ---
             if os.path.exists("fundsight_logo.png"):
-                pdf.image("fundsight_logo.png", x=85, y=10, w=40)  # Centered logo
+                pdf.image("fundsight_logo.png", x=85, y=10, w=40)
             pdf.set_xy(10, 30)
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0, 10, "FundSight: Built for Habitat Affiliates", ln=True, align="C")
+            pdf.cell(0, 10, "Board Finance Report", ln=True, align="C")
             pdf.set_font("Arial", "I", 11)
             pdf.cell(0, 10, "Built for Nonprofits – Financial Clarity at a Glance", ln=True, align="C")
             pdf.ln(10)
 
-            # --- Summary Section ---
+            # --- Summary ---
             if include_summary:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Financial Summary", ln=True)
@@ -354,7 +379,7 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, f"Net Cash Flow:          {format_currency(net)}", ln=True)
                 pdf.ln(3)
 
-            # --- Key Ratios (Cash + Program Ratio) ---
+            # --- Ratios ---
             if include_ratios:
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Key Ratios", ln=True)
@@ -390,14 +415,14 @@ if show_email_button and uploaded_file:
                     pdf.cell(0, 8, line, ln=True)
                 pdf.ln(3)
 
-            # --- Income vs Expenses Chart ---
+            # --- Chart ---
             if include_chart and chart_path and os.path.exists(chart_path):
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Income vs Expenses", ln=True)
                 pdf.image(chart_path, w=120)
                 pdf.ln(3)
 
-            # --- Board Notes Section ---
+            # --- Board Notes ---
             if include_notes and board_notes.strip():
                 pdf.set_font("Arial", "B", 11)
                 pdf.cell(0, 8, "Board Notes", ln=True)
@@ -412,20 +437,20 @@ if show_email_button and uploaded_file:
                 pdf.cell(0, 8, "Board Member Signature", ln=True)
 
             # --- Save PDF ---
-            pdf_output = "/tmp/fundsight_board_report.pdf"
-            pdf.output(pdf_output)
+            pdf_path = "/tmp/fundsight_board_report.pdf"
+            pdf.output(pdf_path)
 
-            # --- Send Email with Attachment ---
+            # --- Send Email ---
             msg = MIMEMultipart()
             msg["From"] = st.secrets["email"]["email_user"]
             msg["To"] = recipient_email
             msg["Subject"] = custom_subject
             msg.attach(MIMEText(custom_body, "plain"))
 
-            with open(pdf_output, "rb") as f:
-                attachment = MIMEApplication(f.read(), _subtype="pdf")
-                attachment.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
-                msg.attach(attachment)
+            with open(pdf_path, "rb") as f:
+                part = MIMEApplication(f.read(), _subtype="pdf")
+                part.add_header("Content-Disposition", "attachment", filename="fundsight_board_report.pdf")
+                msg.attach(part)
 
             with smtplib.SMTP("smtp.gmail.com", 587) as server:
                 server.starttls()
@@ -435,4 +460,4 @@ if show_email_button and uploaded_file:
             st.success("✅ Board Finance Report sent successfully!")
 
         except Exception as e:
-            st.error(f"❌ Error sending PDF: {e}")
+            st.error(f"❌ Error sending PDF: {e}")e}")
