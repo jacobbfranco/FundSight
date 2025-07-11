@@ -337,13 +337,6 @@ with st.expander("📝 Program Services"):
 st.markdown("### 📝 Board Notes")
 board_notes = st.text_area("Enter any notes you'd like to include in the Board PDF report:", height=150)
 
-# --- PDF Class with Footer ---
-class FundSightPDF(FPDF):
-    def footer(self):
-        self.set_y(-15)
-        self.set_font("Arial", "I", 10)
-        self.set_text_color(100)
-        self.cell(0, 10, "Built for Nonprofits - Financial Clarity at a Glance", 0, 0, "C")
 
 # --- PDF Section Selection Checkboxes ---
 mortgage_summary = ""
