@@ -365,15 +365,31 @@ if show_email_button and uploaded_file:
             pdf.add_page()
             pdf.set_auto_page_break(auto=True, margin=20)
 
-            # --- Header Section ---
-            if os.path.exists("fundsight_logo.png"):
-                pdf.image("fundsight_logo.png", x=85, y=10, w=40)
-            pdf.set_xy(10, 30)
-            pdf.set_font("Arial", "", 14)
-            pdf.cell(0, 10, f"Board Finance Report - {selected_client}", ln=True, align="C")
-            pdf.set_font("Arial", "I", 11)
-            pdf.cell(0, 10, "Built for Nonprofits - Financial Clarity at a Glance", ln=True, align="C")
-            pdf.ln(10)
+           # --- Header Section ---
+           if os.path.exists("fundsight_logo.png"):
+               pdf.image("fundsight_logo.png", x=10, y=10, w=25)
+
+           # Title centered
+           pdf.set_xy(0, 10)
+           pdf.set_font("Arial", "B", 14)
+           pdf.cell(0, 10, "Board Finance Report", border=0, ln=0, align="C")
+
+           # Date on the right
+           pdf.set_xy(-50, 10)
+           pdf.set_font("Arial", "", 11)
+           pdf.cell(40, 10, datetime.now().strftime("%b %d, %Y"), ln=0, align="R")
+
+           # Client name below logo
+           pdf.set_xy(10, 20)
+           pdf.set_font("Arial", "", 11)
+           pdf.set_text_color(50)
+           pdf.cell(0, 10, f"Client: {selected_client}", ln=True)
+
+           # Horizontal line
+           pdf.set_draw_color(100)
+           pdf.line(10, 28, 200, 28)
+
+           pdf.ln(10)
 
             # --- Summary ---
             if include_summary:
