@@ -379,13 +379,14 @@ if show_email_button and uploaded_file:
             pdf.set_font("Arial", "", 11)
             pdf.cell(40, 10, datetime.now().strftime("%b %d, %Y"), ln=0, align="R")
 
-            pdf.set_xy(10, 22)
+            # ✅ Updated client name placement to avoid overlapping logo
+            pdf.set_xy(10, 32)
             pdf.set_font("Arial", "", 11)
             pdf.set_text_color(50)
             pdf.cell(100, 10, f"Client: {selected_client}", ln=True)
 
             pdf.set_draw_color(100)
-            pdf.line(10, 30, 200, 30)
+            pdf.line(10, 40, 200, 40)
             pdf.ln(12)
 
             # --- PDF Sections ---
