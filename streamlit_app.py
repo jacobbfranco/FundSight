@@ -83,11 +83,12 @@ with st.sidebar:
     goal_income = st.number_input("Monthly Income Goal ($)", value=5000)
     goal_program_ratio = st.slider("Program Ratio Goal", 0.0, 1.0, 0.75)
 
-# --- Branding: Logo + Client Title ---
-st.markdown("""
+# --- Branding: Logo + Dynamic Client Title ---
+st.image("fundsight_logo.png", width=180)
+
+st.markdown(f"""
     <div style='text-align: center; margin-top: 10px; margin-bottom: 5px;'>
-        st.image("fundsight_logo.png", width=180)
-        <h1 style='margin-bottom: 0px;'>📊 Client A Dashboard</h1>
+        <h1 style='margin-bottom: 0px;'>📊 {selected_client} Dashboard</h1>
         <h4 style='margin-top: 5px; color: gray;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
     </div>
 """, unsafe_allow_html=True)
