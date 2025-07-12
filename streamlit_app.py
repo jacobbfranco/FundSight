@@ -33,7 +33,7 @@ hide_streamlit_style = """
     <style>
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        .stDeployButton {visibility: hidden;}
+        header {visibility: hidden;}
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -83,15 +83,21 @@ with st.sidebar:
     goal_income = st.number_input("Monthly Income Goal ($)", value=5000)
     goal_program_ratio = st.slider("Program Ratio Goal", 0.0, 1.0, 0.75)
 
-# --- Header ---
-st.image("fundsight_logo.png", width=200)
-
-st.markdown(f"""
-<h1 style='text-align:left; font-size:32px; margin-bottom:0;'>📊 FundSight Dashboard for <span style="color:#2c3e50;">{selected_client}</span></h1>
-<h4 style='color:gray; font-weight:normal; margin-top:4px;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
-""", unsafe_allow_html=True)
-
-st.markdown("---")
+# --- Branding Header ---
+st.markdown(
+    """
+    <div style='display: flex; align-items: center; justify-content: space-between;'>
+        <div style='display: flex; flex-direction: column; align-items: flex-start;'>
+            <img src="https://yourdomain.com/path-to-your-logo.png" width="120">
+        </div>
+        <div style='text-align: center; flex-grow: 1;'>
+            <h1 style='margin: 0; font-size: 32px;'>📊 Client A Dashboard</h1>
+        </div>
+    </div>
+    <hr style='margin-top:10px;'>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # --- Load CSV + Process ---
