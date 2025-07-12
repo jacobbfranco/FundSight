@@ -88,8 +88,8 @@ st.image("fundsight_logo.png", width=180)
 
 st.markdown(f"""
     <div style='text-align: center; margin-top: 10px; margin-bottom: 5px;'>
-        <h1 style='margin-bottom: 0px;'>📊 {selected_client} Dashboard</h1>
-        <h4 style='margin-top: 5px; color: gray;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
+        <h1 style='margin-bottom: 0px;'>{selected_client} Dashboard</h1>
+        
     </div>
 """, unsafe_allow_html=True)
 
