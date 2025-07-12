@@ -33,8 +33,7 @@ hide_streamlit_style = """
     <style>
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        header {visibility: hidden;}
-        .stActionButton {visibility: visible;}
+        .stDeployButton {visibility: hidden;}
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -85,13 +84,15 @@ with st.sidebar:
     goal_program_ratio = st.slider("Program Ratio Goal", 0.0, 1.0, 0.75)
 
 # --- Header ---
-st.markdown(f"""## FundSight Dashboard for **{selected_client}**
-<small style='color: gray;'>Designed for Nonprofits • QuickBooks-Compatible</small>""", unsafe_allow_html=True)
+st.image("fundsight_logo.png", width=200)
+
+st.markdown(f"""
+<h1 style='text-align:left; font-size:32px; margin-bottom:0;'>📊 FundSight Dashboard for <span style="color:#2c3e50;">{selected_client}</span></h1>
+<h4 style='color:gray; font-weight:normal; margin-top:4px;'>Built for Nonprofits – Financial Clarity at a Glance</h4>
+""", unsafe_allow_html=True)
+
 st.markdown("---")
 
-# File display message
-if not uploaded_file:
-    st.info("⬆️ Upload your QuickBooks CSV file to begin.")
 
 # --- Load CSV + Process ---
 if uploaded_file:
